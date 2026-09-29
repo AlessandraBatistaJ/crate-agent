@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="CrateAgent.Cli/CrateAgent.Cli.csproj" />
+  <Project Path="CrateAgent.Core/CrateAgent.Core.csproj" />
+  <Project Path="CrateAgent.Tests/CrateAgent.Tests.csproj" />
+</Solution>
