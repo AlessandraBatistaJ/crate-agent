@@ -29,7 +29,7 @@ public class LibraryScanner
             using var tagFile = TagLib.File.Create(filePath);
             var tag = tagFile.Tag;
 
-            var (fileArtist, fileTitle) = ParseFileName(filePath);
+            var (fileArtist, fileTitle) = FileNameParser.Parse(filePath);
 
             return new Track
             {
@@ -47,16 +47,5 @@ public class LibraryScanner
         {
             return null; // arquivo corrompido ou ilegível: ignora
         }
-    }
-
-    private static (string Artist, string Title) ParseFileName(string filePath)
-    {
-        var name = Path.GetFileNameWithoutExtension(filePath).Replace('_', ' ');
-
-        var parts = name.Split(" - ", 2, StringSplitOptions.TrimEntries);
-
-        return parts.Length == 2
-            ? (parts[0], parts[1])
-            : (string.Empty, name.Trim());
     }
 }
