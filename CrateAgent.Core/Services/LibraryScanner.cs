@@ -31,7 +31,7 @@ public class LibraryScanner
 
             var (fileArtist, fileTitle) = FileNameParser.Parse(filePath);
 
-            return new Track
+            var track = new Track
             {
                 FilePath = filePath,
                 Title = NameCleaner.Clean(string.IsNullOrWhiteSpace(tag.Title) ? fileTitle : tag.Title),
@@ -42,6 +42,9 @@ public class LibraryScanner
                 Bpm = tag.BeatsPerMinute == 0 ? null : (int)tag.BeatsPerMinute,
                 Duration = tagFile.Properties.Duration
             };
+
+            track.ReviewReasons = TrackReviewer.Evaluate(track);
+            return track;
         }
         catch (Exception)
         {

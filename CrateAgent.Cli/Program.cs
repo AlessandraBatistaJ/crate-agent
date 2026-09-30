@@ -15,11 +15,12 @@ if (string.IsNullOrWhiteSpace(folder) || !Directory.Exists(folder))
 var scanner = new LibraryScanner();
 var tracks = scanner.Scan(folder).ToList();
 
-Console.WriteLine($"\n{tracks.Count} faixas encontradas:\n");
+Console.WriteLine($"\n{tracks.Count} faixas encontradas.");
+Console.WriteLine($"{tracks.Count(t => !t.NeedsReview)} ok, {tracks.Count(t => t.NeedsReview)} para revisar.\n");
 
 foreach (var t in tracks)
 {
-    var bpm = t.Bpm?.ToString() ?? "?";
     var arquivo = Path.GetFileName(t.FilePath);
-    Console.WriteLine($"[{arquivo}] {t.Artist} - {t.Title} | {t.Album} | BPM: {bpm}");
+    var marca = t.NeedsReview ? $"  [REVISAR: {t.ReviewReasons}]" : "";
+    Console.WriteLine($"[{arquivo}] {t.Artist} - {t.Title}{marca}");
 }

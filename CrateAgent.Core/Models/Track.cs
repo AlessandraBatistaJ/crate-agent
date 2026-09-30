@@ -12,5 +12,7 @@ public class Track
     public int? Bpm { get; set; }
     public string? Key { get; set; }
     public TimeSpan Duration { get; set; }
+    public ReviewReason ReviewReasons { get; set; } = ReviewReason.None;
+    public bool NeedsReview => ReviewReasons != ReviewReason.None;
 
 }
