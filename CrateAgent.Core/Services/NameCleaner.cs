@@ -1,4 +1,5 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Text;
+using System.Text.RegularExpressions;
 
 namespace CrateAgent.Core.Services;
 
@@ -12,7 +13,8 @@ public static class NameCleaner
 
     public static string Clean(string text)
     {
-        var result = PremiereWord.Replace(text, " ");
+        var result = text.Normalize(NormalizationForm.FormC);
+        result = PremiereWord.Replace(result, " ");
         result = ExtraSpaces.Replace(result, " ");
         return result.Trim();
     }

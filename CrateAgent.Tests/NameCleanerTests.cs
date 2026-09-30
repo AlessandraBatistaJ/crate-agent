@@ -14,4 +14,11 @@ public class NameCleanerTests
     {
         Assert.Equal(esperado, NameCleaner.Clean(entrada));
     }
+
+    [Fact]
+    public void Clean_NormalizaAcentosDecompostos()
+    {
+        var decomposto = "GRU\u0308V02"; // "U" + trema separado
+        Assert.Equal("GR\u00DCV02", NameCleaner.Clean(decomposto));
+    }
 }
