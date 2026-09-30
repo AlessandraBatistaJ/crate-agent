@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using CrateAgent.Core.Models;
+using System.Text;
 using CrateAgent.Core.Services;
 
 Console.OutputEncoding = Encoding.UTF8;
@@ -24,3 +25,22 @@ foreach (var t in tracks)
     var marca = t.NeedsReview ? $"  [REVISAR: {t.ReviewReasons}]" : "";
     Console.WriteLine($"[{arquivo}] {t.Artist} - {t.Title}{marca}");
 }
+
+Console.Write("\nDigite a pasta de destino para simular a organização: ");
+var destino = Console.ReadLine()?.Trim('"', ' ');
+
+if (string.IsNullOrWhiteSpace(destino))
+    return;
+
+var plano = LibraryOrganizer.Plan(tracks, destino);
+
+Console.WriteLine("\n=== SIMULAÇÃO (nada será movido) ===\n");
+
+foreach (var move in plano)
+{
+    var origem = Path.GetFileName(move.Source);
+    var relativo = Path.GetRelativePath(destino, move.Destination);
+    Console.WriteLine($"{origem}\n   → {relativo}\n");
+}
+
+Console.WriteLine($"{plano.Count(m => !m.ToReview)} seriam organizadas, {plano.Count(m => m.ToReview)} iriam para _Revisar.");
