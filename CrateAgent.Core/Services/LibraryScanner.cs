@@ -34,8 +34,8 @@ public class LibraryScanner
             return new Track
             {
                 FilePath = filePath,
-                Title = string.IsNullOrWhiteSpace(tag.Title) ? fileTitle : tag.Title,
-                Artist = string.IsNullOrWhiteSpace(tag.FirstPerformer) ? fileArtist : tag.FirstPerformer,
+                Title = NameCleaner.Clean(string.IsNullOrWhiteSpace(tag.Title) ? fileTitle : tag.Title),
+                Artist = NameCleaner.Clean(string.IsNullOrWhiteSpace(tag.FirstPerformer) ? fileArtist : tag.FirstPerformer),
                 Album = tag.Album ?? string.Empty,
                 Year = tag.Year == 0 ? null : tag.Year,
                 Genre = tag.FirstGenre,
