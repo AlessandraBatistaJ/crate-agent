@@ -4,6 +4,24 @@ using CrateAgent.Core.Services;
 
 Console.OutputEncoding = Encoding.UTF8;
 
+Console.Write("1 = Organizar uma pasta | 2 = Desfazer usando um log: ");
+
+if (Console.ReadLine()?.Trim() == "2")
+{
+    Console.Write("Caminho do arquivo de log: ");
+    var logDesfazer = Console.ReadLine()?.Trim('"', ' ');
+
+    if (string.IsNullOrWhiteSpace(logDesfazer) || !File.Exists(logDesfazer))
+    {
+        Console.WriteLine("Log não encontrado.");
+        return;
+    }
+
+    var desfeito = LibraryMover.Undo(logDesfazer);
+    Console.WriteLine($"{desfeito.Count} arquivos restaurados, {desfeito.Skipped.Count} ignorados.");
+    return;
+}
+
 Console.Write("Digite o caminho da pasta de músicas: ");
 var folder = Console.ReadLine()?.Trim('"', ' ');
 
@@ -44,3 +62,17 @@ foreach (var move in plano)
 }
 
 Console.WriteLine($"{plano.Count(m => !m.ToReview)} seriam organizadas, {plano.Count(m => m.ToReview)} iriam para _Revisar.");
+
+Console.Write("\nMover os arquivos de verdade? Digite SIM para confirmar: ");
+
+if (Console.ReadLine()?.Trim() != "SIM")
+{
+    Console.WriteLine("Nada foi movido.");
+    return;
+}
+
+var logPath = Path.Combine(destino, $"crateagent-log-{DateTime.Now:yyyyMMdd-HHmmss}.json");
+var resultado = LibraryMover.Execute(plano, logPath);
+
+Console.WriteLine($"\n{resultado.Count} arquivos movidos, {resultado.Skipped.Count} ignorados.");
+Console.WriteLine($"Log salvo em: {logPath}");
