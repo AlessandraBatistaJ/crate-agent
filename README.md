@@ -15,6 +15,9 @@ O projeto nasceu de um problema real: uma pasta de downloads do Bandcamp e de ou
 - ✅ **Mover de verdade** com log em JSON e **desfazer**
 - ✅ 26 testes automatizados com xUnit
 
+### Testes passando
+![Testes passando](docs/images/testes.png)
+
 ## Como funciona
 
 ```
