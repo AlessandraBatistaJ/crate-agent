@@ -1,9 +1,10 @@
-﻿using CrateAgent.Core.Models;
-using System.Text;
+﻿using System.Text;
+using CrateAgent.Core.Models;
 using CrateAgent.Core.Services;
 
 Console.OutputEncoding = Encoding.UTF8;
 
+// ===== Menu: organizar ou desfazer =====
 Console.Write("1 = Organizar uma pasta | 2 = Desfazer usando um log: ");
 
 if (Console.ReadLine()?.Trim() == "2")
@@ -22,6 +23,7 @@ if (Console.ReadLine()?.Trim() == "2")
     return;
 }
 
+// ===== Escanear a pasta de músicas =====
 Console.Write("Digite o caminho da pasta de músicas: ");
 var folder = Console.ReadLine()?.Trim('"', ' ');
 
@@ -35,7 +37,7 @@ var scanner = new LibraryScanner();
 var tracks = scanner.Scan(folder).ToList();
 
 Console.WriteLine($"\n{tracks.Count} faixas encontradas.");
-Console.WriteLine($"{tracks.Count(t => !t.NeedsReview)} ok, {tracks.Count(t => t.NeedsReview)} para revisar.\n");
+Console.WriteLine($"{tracks.Count(x => !x.NeedsReview)} ok, {tracks.Count(x => x.NeedsReview)} para revisar.\n");
 
 foreach (var t in tracks)
 {
@@ -44,36 +46,54 @@ foreach (var t in tracks)
     Console.WriteLine($"[{arquivo}] {t.Artist} - {t.Title}{marca}");
 }
 
-Console.Write("\nPedir sugestões da IA para as primeiras 5 faixas em revisão? (S/N): ");
+// ===== Sugestões da IA (só para faixas sem artista) =====
+var semArtista = tracks
+    .Where(x => x.ReviewReasons.HasFlag(ReviewReason.MissingArtist))
+    .ToList();
 
-if (Console.ReadLine()?.Trim().ToUpper() == "S")
+if (semArtista.Count > 0)
 {
-    using var http = new HttpClient
-    {
-        BaseAddress = new Uri("http://localhost:11434"),
-        Timeout = TimeSpan.FromMinutes(2)
-    };
-    var suggester = new OllamaTrackSuggester(http);
+    Console.Write($"\nPedir sugestões da IA para as {semArtista.Count} faixas sem artista? (S/N): ");
 
-    foreach (var t in tracks.Where(t => t.NeedsReview).Take(5))
+    if (Console.ReadLine()?.Trim().ToUpper() == "S")
     {
-        var arquivo = Path.GetFileName(t.FilePath);
-        try
+        using var http = new HttpClient
         {
-            var s = await suggester.SuggestAsync(arquivo);
-            Console.WriteLine($"\n{arquivo}");
-            Console.WriteLine(s is null
-                ? "   → (sem sugestão válida)"
-                : $"   → Artista: \"{s.Artist}\" | Título: \"{s.Title}\"\n   ({s.Reason})");
-        }
-        catch (HttpRequestException)
+            BaseAddress = new Uri("http://localhost:11434"),
+            Timeout = TimeSpan.FromMinutes(2)
+        };
+        var suggester = new OllamaTrackSuggester(http);
+
+        foreach (var faixa in semArtista)
         {
-            Console.WriteLine("Não consegui falar com o Ollama. Ele está aberto?");
-            break;
+            var nomeArquivo = Path.GetFileName(faixa.FilePath);
+            try
+            {
+                var s = await suggester.SuggestAsync(nomeArquivo);
+                Console.WriteLine($"\n{nomeArquivo}");
+
+                if (s is null)
+                {
+                    Console.WriteLine("   → (sem sugestão válida)");
+                }
+                else
+                {
+                    var veredito = SuggestionGuard.Validate(nomeArquivo, s);
+                    var status = veredito.Accepted ? "ACEITA" : $"REJEITADA: {veredito.Reason}";
+                    Console.WriteLine($"   → Artista: \"{s.Artist}\" | Título: \"{s.Title}\"");
+                    Console.WriteLine($"   [{status}]");
+                }
+            }
+            catch (HttpRequestException)
+            {
+                Console.WriteLine("Não consegui falar com o Ollama. Ele está aberto?");
+                break;
+            }
         }
     }
 }
 
+// ===== Simulação (dry-run) =====
 Console.Write("\nDigite a pasta de destino para simular a organização: ");
 var destino = Console.ReadLine()?.Trim('"', ' ');
 
@@ -93,6 +113,7 @@ foreach (var move in plano)
 
 Console.WriteLine($"{plano.Count(m => !m.ToReview)} seriam organizadas, {plano.Count(m => m.ToReview)} iriam para _Revisar.");
 
+// ===== Mover de verdade (com confirmação) =====
 Console.Write("\nMover os arquivos de verdade? Digite SIM para confirmar: ");
 
 if (Console.ReadLine()?.Trim() != "SIM")
