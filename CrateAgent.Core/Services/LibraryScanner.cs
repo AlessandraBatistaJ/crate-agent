@@ -31,11 +31,16 @@ public class LibraryScanner
 
             var (fileArtist, fileTitle) = FileNameParser.Parse(filePath);
 
+            // tag com " - " no título costuma estar suja: usa o nome do arquivo no lugar
+            var tagSuspeita = tag.Title?.Contains(" - ") == true;
+            var tagTitle = tagSuspeita ? null : tag.Title;
+            var tagArtist = tagSuspeita ? null : tag.FirstPerformer;
+
             var track = new Track
             {
                 FilePath = filePath,
-                Title = NameCleaner.Clean(string.IsNullOrWhiteSpace(tag.Title) ? fileTitle : tag.Title),
-                Artist = NameCleaner.Clean(string.IsNullOrWhiteSpace(tag.FirstPerformer) ? fileArtist : tag.FirstPerformer),
+                Title = NameCleaner.Clean(string.IsNullOrWhiteSpace(tagTitle) ? fileTitle : tagTitle),
+                Artist = NameCleaner.Clean(string.IsNullOrWhiteSpace(tagArtist) ? fileArtist : tagArtist),
                 Album = tag.Album ?? string.Empty,
                 Year = tag.Year == 0 ? null : tag.Year,
                 Genre = tag.FirstGenre,
