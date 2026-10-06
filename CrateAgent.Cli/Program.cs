@@ -44,6 +44,36 @@ foreach (var t in tracks)
     Console.WriteLine($"[{arquivo}] {t.Artist} - {t.Title}{marca}");
 }
 
+Console.Write("\nPedir sugestões da IA para as primeiras 5 faixas em revisão? (S/N): ");
+
+if (Console.ReadLine()?.Trim().ToUpper() == "S")
+{
+    using var http = new HttpClient
+    {
+        BaseAddress = new Uri("http://localhost:11434"),
+        Timeout = TimeSpan.FromMinutes(2)
+    };
+    var suggester = new OllamaTrackSuggester(http);
+
+    foreach (var t in tracks.Where(t => t.NeedsReview).Take(5))
+    {
+        var arquivo = Path.GetFileName(t.FilePath);
+        try
+        {
+            var s = await suggester.SuggestAsync(arquivo);
+            Console.WriteLine($"\n{arquivo}");
+            Console.WriteLine(s is null
+                ? "   → (sem sugestão válida)"
+                : $"   → Artista: \"{s.Artist}\" | Título: \"{s.Title}\"\n   ({s.Reason})");
+        }
+        catch (HttpRequestException)
+        {
+            Console.WriteLine("Não consegui falar com o Ollama. Ele está aberto?");
+            break;
+        }
+    }
+}
+
 Console.Write("\nDigite a pasta de destino para simular a organização: ");
 var destino = Console.ReadLine()?.Trim('"', ' ');
 
