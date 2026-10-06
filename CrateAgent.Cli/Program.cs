@@ -4,10 +4,11 @@ using CrateAgent.Core.Services;
 
 Console.OutputEncoding = Encoding.UTF8;
 
-// ===== Menu: organizar ou desfazer =====
-Console.Write("1 = Organizar uma pasta | 2 = Desfazer usando um log: ");
+// ===== Menu: organizar, desfazer ou avaliar gabarito =====
+Console.Write("1 = Organizar | 2 = Desfazer | 3 = Avaliar gabarito: ");
+var opcao = Console.ReadLine()?.Trim();
 
-if (Console.ReadLine()?.Trim() == "2")
+if (opcao == "2")
 {
     Console.Write("Caminho do arquivo de log: ");
     var logDesfazer = Console.ReadLine()?.Trim('"', ' ');
@@ -36,6 +37,40 @@ if (string.IsNullOrWhiteSpace(folder) || !Directory.Exists(folder))
 var scanner = new LibraryScanner();
 var tracks = scanner.Scan(folder).ToList();
 
+// ===== Avaliar gabarito =====
+if (opcao == "3")
+{
+    Console.Write("Caminho do gabarito.csv: ");
+    var csv = Console.ReadLine()?.Trim('"', ' ');
+
+    if (string.IsNullOrWhiteSpace(csv) || !File.Exists(csv))
+    {
+        Console.WriteLine("Gabarito não encontrado.");
+        return;
+    }
+
+    var (rows, notFound) = GabaritoEvaluator.Evaluate(tracks, csv);
+    var certos = rows.Count(linha => linha.Correct);
+
+    Console.WriteLine();
+
+    foreach (var erro in rows.Where(linha => !linha.Correct))
+        Console.WriteLine($"[{erro.Original}]\n   esperado: {erro.Expected}\n   obtido:   {erro.Actual}\n");
+
+    foreach (var ausente in notFound)
+        Console.WriteLine($"Não encontrado na pasta: {ausente}");
+
+    if (rows.Count == 0)
+    {
+        Console.WriteLine("Nenhuma faixa da pasta bateu com o gabarito. Confira a pasta e o CSV.");
+        return;
+    }
+
+    Console.WriteLine($"Acertos: {certos}/{rows.Count} ({(double)certos / rows.Count:P0})");
+    return;
+}
+
+// ===== Listar faixas =====
 Console.WriteLine($"\n{tracks.Count} faixas encontradas.");
 Console.WriteLine($"{tracks.Count(x => !x.NeedsReview)} ok, {tracks.Count(x => x.NeedsReview)} para revisar.\n");
 
