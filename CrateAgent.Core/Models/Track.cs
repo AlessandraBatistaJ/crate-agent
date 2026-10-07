@@ -13,6 +13,7 @@ public class Track
     public string? Key { get; set; }
     public TimeSpan Duration { get; set; }
     public ReviewReason ReviewReasons { get; set; } = ReviewReason.None;
-    public bool NeedsReview => ReviewReasons != ReviewReason.None;
+    public bool NeedsReview =>
+    (ReviewReasons & (ReviewReason.MissingArtist | ReviewReason.SuspiciousTitle)) != ReviewReason.None;
 
 }

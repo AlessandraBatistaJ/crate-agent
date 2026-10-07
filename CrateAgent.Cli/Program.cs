@@ -77,7 +77,9 @@ Console.WriteLine($"{tracks.Count(x => !x.NeedsReview)} ok, {tracks.Count(x => x
 foreach (var t in tracks)
 {
     var arquivo = Path.GetFileName(t.FilePath);
-    var marca = t.NeedsReview ? $"  [REVISAR: {t.ReviewReasons}]" : "";
+    var marca = t.NeedsReview
+    ? $"  [REVISAR: {t.ReviewReasons}]"
+    : t.ReviewReasons.HasFlag(ReviewReason.CatalogCode) ? "  (código de catálogo mantido)" : "";
     Console.WriteLine($"[{arquivo}] {t.Artist} - {t.Title}{marca}");
 }
 
