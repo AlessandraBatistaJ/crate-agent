@@ -38,7 +38,6 @@ public class LibraryOrganizerTests
         Assert.Equal(Path.Combine(Root, "_Revisar", "Night_Train.mp3"), moves[0].Destination);
         Assert.True(moves[0].ToReview);
     }
-
     [Fact]
     public void Plan_RemoveCaracteresProibidos()
     {
@@ -51,7 +50,24 @@ public class LibraryOrganizerTests
 
         var moves = LibraryOrganizer.Plan(new[] { track }, Root);
 
-        Assert.Equal(Path.Combine(Root, "ACDC", "ACDC - Back In Black.mp3"), moves[0].Destination);
+        Assert.Equal(Path.Combine(Root, "ACDC", "ACDC - Back_In_Black.mp3"), moves[0].Destination);
+    }
+
+    [Fact]
+    public void Plan_NomeDoArquivoUsaUnderscore_PastaMantemEspaco()
+    {
+        var track = new Track
+        {
+            FilePath = Path.Combine("downloads", "z.mp3"),
+            Artist = "Marko Nastic",
+            Title = "Her Name Was Rio"
+        };
+
+        var moves = LibraryOrganizer.Plan(new[] { track }, Root);
+
+        Assert.Equal(
+            Path.Combine(Root, "Marko Nastic", "Marko_Nastic - Her_Name_Was_Rio.mp3"),
+            moves[0].Destination);
     }
 
     [Fact]

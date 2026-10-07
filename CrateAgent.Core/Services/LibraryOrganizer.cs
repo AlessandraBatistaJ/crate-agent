@@ -23,9 +23,11 @@ public static class LibraryOrganizer
             }
             else
             {
-                var extension = Path.GetExtension(track.FilePath);
-                folder = Sanitize(track.Artist);
-                fileName = Sanitize($"{track.Artist} - {track.Title}") + extension;
+                var artist = Sanitize(track.Artist);
+                var title = Sanitize(track.Title);
+
+                folder = artist; // para a pasta também com underscore: Underscore(artist)
+                fileName = FileNameFormatter.Format(artist, title, Path.GetExtension(track.FilePath));
             }
 
             var destination = MakeUnique(Path.Combine(destinationRoot, folder, fileName), used);
