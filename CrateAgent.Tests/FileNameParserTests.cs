@@ -45,4 +45,18 @@ public class FileNameParserTests
         Assert.Equal(artistaEsperado, artista);
         Assert.Equal(tituloEsperado, titulo);
     }
+
+    [Theory]
+    [InlineData("BCCO_Premiere_Mathys_Lenne_-_Mutant_MR039.mp3", true)]
+    [InlineData("SIAH_Premiere_bmod_-_Dancers_March_Original_Mix_SHR003 (1).mp3", true)]
+    [InlineData("Pressurefunk_Premiere_Sveric_–_Razorsharp_HMN001.mp3", true)]
+    [InlineData("PREMIERE_Setaoc_Mass_-_Sundogs_SK11013.mp3", false)]
+    [InlineData("A1_Benales_-_Cryo_Clergy.mp3", false)]
+    [InlineData("Blenk_-_Vibration.mp3", false)]
+    public void ParseDetailed_SinalizaPrefixoDescartadoAntesDePremiere(string arquivo, bool esperado)
+    {
+        var resultado = FileNameParser.ParseDetailed(arquivo);
+
+        Assert.Equal(esperado, resultado.PrefixRemoved);
+    }
 }

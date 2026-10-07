@@ -29,18 +29,19 @@ public class LibraryScanner
             using var tagFile = TagLib.File.Create(filePath);
             var tag = tagFile.Tag;
 
-            var (fileArtist, fileTitle) = FileNameParser.Parse(filePath);
+            var parsed = FileNameParser.ParseDetailed(filePath);
 
             // tag com " - " no título costuma estar suja: usa o nome do arquivo no lugar
             var tagSuspeita = tag.Title?.Contains(" - ") == true;
             var tagTitle = tagSuspeita ? null : tag.Title;
             var tagArtist = tagSuspeita ? null : tag.FirstPerformer;
+            var artistaVemDoNome = string.IsNullOrWhiteSpace(tagArtist);
 
             var track = new Track
             {
                 FilePath = filePath,
-                Title = NameCleaner.Clean(string.IsNullOrWhiteSpace(tagTitle) ? fileTitle : tagTitle),
-                Artist = NameCleaner.Clean(string.IsNullOrWhiteSpace(tagArtist) ? fileArtist : tagArtist),
+                Title = NameCleaner.Clean(string.IsNullOrWhiteSpace(tagTitle) ? parsed.Title : tagTitle),
+                Artist = NameCleaner.Clean(artistaVemDoNome ? parsed.Artist : tagArtist!),
                 Album = tag.Album ?? string.Empty,
                 Year = tag.Year == 0 ? null : tag.Year,
                 Genre = tag.FirstGenre,
@@ -49,6 +50,11 @@ public class LibraryScanner
             };
 
             track.ReviewReasons = TrackReviewer.Evaluate(track);
+
+            // só sinaliza quando o artista veio do nome do arquivo e um prefixo foi descartado
+            if (artistaVemDoNome && parsed.PrefixRemoved)
+                track.ReviewReasons |= ReviewReason.PrefixRemoved;
+
             return track;
         }
         catch (Exception)

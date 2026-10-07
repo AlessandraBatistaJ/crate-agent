@@ -2,6 +2,8 @@
 
 namespace CrateAgent.Core.Services;
 
+public record ParsedName(string Artist, string Title, bool PrefixRemoved);
+
 public static class FileNameParser
 {
     // hífen, meia-risca (–) ou travessão (—), com espaços em volta
@@ -24,21 +26,34 @@ public static class FileNameParser
 
     public static (string Artist, string Title) Parse(string filePath)
     {
+        var parsed = ParseDetailed(filePath);
+        return (parsed.Artist, parsed.Title);
+    }
+
+    public static ParsedName ParseDetailed(string filePath)
+    {
         var name = Path.GetFileNameWithoutExtension(filePath).Replace('_', ' ').Trim();
         name = DuplicateMarker.Replace(name, string.Empty);
 
         var parts = Separator.Split(name, 2);
 
-        return parts.Length == 2
-            ? (CleanArtist(parts[0].Trim()), parts[1].Trim())
-            : (string.Empty, name);
+        if (parts.Length != 2)
+            return new ParsedName(string.Empty, name, false);
+
+        var (artist, prefixRemoved) = CleanArtist(parts[0].Trim());
+        return new ParsedName(artist, parts[1].Trim(), prefixRemoved);
     }
 
-    private static string CleanArtist(string artist)
+    private static (string Artist, bool PrefixRemoved) CleanArtist(string artist)
     {
+        var prefixRemoved = false;
+
         var match = ChannelBeforePremiere.Match(artist);
         if (match.Success)
+        {
             artist = match.Groups["rest"].Value;
+            prefixRemoved = true;
+        }
 
         bool changed;
         do
@@ -55,6 +70,6 @@ public static class FileNameParser
             }
         } while (changed);
 
-        return artist.Trim();
+        return (artist.Trim(), prefixRemoved);
     }
 }
