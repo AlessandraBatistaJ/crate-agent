@@ -1,5 +1,7 @@
 # 🎧 CrateAgent
 
+[![CI](https://github.com/AlessandraBatistaJ/crate-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/AlessandraBatistaJ/crate-agent/actions/workflows/ci.yml)
+
 Organizador de bibliotecas de música, feito em C# / .NET 8.
 O projeto nasceu de um problema real: uma pasta de downloads do Bandcamp e de outras fontes, cheia de arquivos sem tags, com nomes sujos e códigos de selo misturados com o título.
 
