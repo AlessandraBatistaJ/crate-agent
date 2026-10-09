@@ -7,13 +7,23 @@ public static class LibraryOrganizer
     private static readonly char[] InvalidChars =
         { '<', '>', ':', '"', '/', '\\', '|', '?', '*' };
 
-    public static List<PlannedMove> Plan(IEnumerable<Track> tracks, string destinationRoot)
+    public static List<PlannedMove> Plan(
+        IEnumerable<Track> tracks, string destinationRoot, ISet<string>? duplicates = null)
     {
         var moves = new List<PlannedMove>();
         var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var track in tracks)
         {
+            if (duplicates is not null && duplicates.Contains(track.FilePath))
+            {
+                var dupDestination = MakeUnique(
+                    Path.Combine(destinationRoot, "_Duplicadas", Path.GetFileName(track.FilePath)), used);
+
+                moves.Add(new PlannedMove(track.FilePath, dupDestination, false, true));
+                continue;
+            }
+
             string folder, fileName;
 
             if (track.NeedsReview)

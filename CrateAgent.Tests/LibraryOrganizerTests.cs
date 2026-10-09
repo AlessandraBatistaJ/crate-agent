@@ -81,4 +81,19 @@ public class LibraryOrganizerTests
         Assert.Equal(Path.Combine(Root, "Isaiah", "Isaiah - Touch.mp3"), moves[0].Destination);
         Assert.Equal(Path.Combine(Root, "Isaiah", "Isaiah - Touch (2).mp3"), moves[1].Destination);
     }
+
+    [Fact]
+    public void Plan_Duplicata_VaiParaDuplicadasComNomeOriginal()
+    {
+        var original = new Track { FilePath = Path.Combine("d", "a.mp3"), Artist = "Isaiah", Title = "Touch" };
+        var copia = new Track { FilePath = Path.Combine("d", "a (1).mp3"), Artist = "Isaiah", Title = "Touch" };
+        var duplicatas = new HashSet<string> { copia.FilePath };
+
+        var moves = LibraryOrganizer.Plan(new[] { original, copia }, Root, duplicatas);
+
+        Assert.Equal(Path.Combine(Root, "Isaiah", "Isaiah - Touch.mp3"), moves[0].Destination);
+        Assert.Equal(Path.Combine(Root, "_Duplicadas", "a (1).mp3"), moves[1].Destination);
+        Assert.True(moves[1].IsDuplicate);
+        Assert.False(moves[0].IsDuplicate);
+    }
 }
