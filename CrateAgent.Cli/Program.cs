@@ -130,6 +130,56 @@ if (semArtista.Count > 0)
     }
 }
 
+// ===== Revisão manual =====
+var pendentes = tracks.Where(x => x.NeedsReview).ToList();
+
+if (pendentes.Count > 0)
+{
+    Console.Write($"\nRevisar agora as {pendentes.Count} faixas em revisão? (S/N): ");
+
+    if (Console.ReadLine()?.Trim().ToUpper() == "S")
+    {
+        Console.WriteLine("Enter = pular | s = aprovar como está | 'Artista - Título' = corrigir | q = parar\n");
+
+        var parar = false;
+
+        foreach (var pendente in pendentes)
+        {
+            if (parar)
+                break;
+
+            Console.WriteLine($"[{Path.GetFileName(pendente.FilePath)}]");
+            Console.WriteLine($"   atual: {pendente.Artist} - {pendente.Title}  ({pendente.ReviewReasons})");
+
+            while (true)
+            {
+                Console.Write("   > ");
+                var entrada = Console.ReadLine();
+
+                if (entrada?.Trim().ToLower() == "q")
+                {
+                    parar = true;
+                    break;
+                }
+
+                var decisao = ManualReview.Parse(entrada, pendente);
+
+                if (decisao.Action == ReviewAction.Invalid)
+                {
+                    Console.WriteLine("   Entrada inválida. Sem artista, digite 'Artista - Título'.");
+                    continue;
+                }
+
+                ManualReview.Apply(pendente, decisao);
+                Console.WriteLine(decisao.Action == ReviewAction.Skip
+                    ? "   (pulada)"
+                    : $"   aprovada: {pendente.Artist} - {pendente.Title}");
+                break;
+            }
+        }
+    }
+}
+
 // ===== Simulação (dry-run) =====
 Console.Write("\nDigite a pasta de destino para simular a organização: ");
 var destino = Console.ReadLine()?.Trim('"', ' ');
@@ -137,21 +187,7 @@ var destino = Console.ReadLine()?.Trim('"', ' ');
 if (string.IsNullOrWhiteSpace(destino))
     return;
 
-var grupos = DuplicateDetector.Find(tracks);
-var duplicatas = grupos.SelectMany(g => g.Duplicates).Select(t => t.FilePath).ToHashSet();
-
-if (grupos.Count > 0)
-{
-    Console.WriteLine($"\n{grupos.Count} grupo(s) de duplicatas encontrado(s):");
-    foreach (var g in grupos)
-    {
-        Console.WriteLine($"   fica:  {Path.GetFileName(g.Keep.FilePath)}");
-        foreach (var d in g.Duplicates)
-            Console.WriteLine($"   copia: {Path.GetFileName(d.FilePath)}");
-    }
-}
-
-var plano = LibraryOrganizer.Plan(tracks, destino, duplicatas);
+var plano = LibraryOrganizer.Plan(tracks, destino);
 
 Console.WriteLine("\n=== SIMULAÇÃO (nada será movido) ===\n");
 
@@ -162,9 +198,7 @@ foreach (var move in plano)
     Console.WriteLine($"{origem}\n   → {relativo}\n");
 }
 
-Console.WriteLine($"{plano.Count(m => !m.ToReview && !m.IsDuplicate)} seriam organizadas, " +
-                  $"{plano.Count(m => m.ToReview)} iriam para _Revisar, " +
-                  $"{plano.Count(m => m.IsDuplicate)} para _Duplicadas.");
+Console.WriteLine($"{plano.Count(m => !m.ToReview)} seriam organizadas, {plano.Count(m => m.ToReview)} iriam para _Revisar.");
 
 // ===== Mover de verdade (com confirmação) =====
 Console.Write("\nMover os arquivos de verdade? Digite SIM para confirmar: ");
