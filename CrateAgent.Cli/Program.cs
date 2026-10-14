@@ -5,7 +5,7 @@ using CrateAgent.Core.Services;
 Console.OutputEncoding = Encoding.UTF8;
 
 // ===== Menu =====
-Console.Write("1 = Organizar | 2 = Desfazer | 3 = Avaliar gabarito | 4 = Importar BPM: ");
+Console.Write("1 = Organizar | 2 = Desfazer | 3 = Avaliar gabarito | 4 = Importar BPM | 5 = Montar set: ");
 var opcao = Console.ReadLine()?.Trim();
 
 if (opcao == "2")
@@ -87,6 +87,74 @@ if (opcao == "4")
 
     foreach (var faixaBpm in tracks.Where(x => x.Bpm is not null || !string.IsNullOrWhiteSpace(x.Key)))
         Console.WriteLine($"{Path.GetFileName(faixaBpm.FilePath)}  |  BPM: {faixaBpm.Bpm?.ToString() ?? "?"}  |  Tom: {faixaBpm.Key ?? "?"}");
+
+    return;
+}
+
+// ===== Montar set =====
+if (opcao == "5")
+{
+    Console.Write("Caminho do bpm.csv: ");
+    var csvSet = Console.ReadLine()?.Trim('"', ' ');
+
+    if (string.IsNullOrWhiteSpace(csvSet) || !File.Exists(csvSet))
+    {
+        Console.WriteLine("Arquivo não encontrado.");
+        return;
+    }
+
+    BpmCsvImporter.Apply(tracks, csvSet);
+
+    var copias = DuplicateDetector.Find(tracks)
+        .SelectMany(g => g.Duplicates)
+        .Select(d => d.FilePath)
+        .ToHashSet();
+    var candidatas = tracks.Where(x => !copias.Contains(x.FilePath)).ToList();
+
+    Console.WriteLine($"\n{candidatas.Count(x => x.Bpm is not null)} faixa(s) com BPM disponíveis (de {candidatas.Count}).");
+
+    Console.Write("BPM inicial: ");
+    var okInicio = int.TryParse(Console.ReadLine(), out var bpmInicio);
+    Console.Write("BPM final: ");
+    var okFim = int.TryParse(Console.ReadLine(), out var bpmFim);
+    Console.Write("Número máximo de faixas: ");
+    var okQtd = int.TryParse(Console.ReadLine(), out var maxFaixas);
+
+    if (!okInicio || !okFim || !okQtd || bpmFim < bpmInicio)
+    {
+        Console.WriteLine("Valores inválidos.");
+        return;
+    }
+
+    var pedido = new SetRequest(bpmInicio, bpmFim, maxFaixas);
+    var sequencia = SetCurator.Build(candidatas, pedido);
+
+    if (sequencia.Count == 0)
+    {
+        Console.WriteLine("Nenhuma faixa com BPM nessa faixa de valores.");
+        return;
+    }
+
+    Console.WriteLine($"\n=== SET ({sequencia.Count} faixa(s)) ===\n");
+
+    for (var i = 0; i < sequencia.Count; i++)
+    {
+        var item = sequencia[i];
+        var anterior = i > 0 ? sequencia[i - 1] : null;
+        var detalhe = "";
+
+        if (anterior is not null)
+        {
+            var ranking = SetCurator.HarmonicRank(anterior.Key, item.Key);
+            var harmonia = ranking == 0 ? "tom compatível" : ranking == 1 ? "tom desconhecido" : "tom incompatível";
+            detalhe = $"   (+{item.Bpm - anterior.Bpm} BPM, {harmonia})";
+        }
+
+        Console.WriteLine($"{i + 1,2}. {item.Bpm} BPM | {item.Key ?? "?"} | {Path.GetFileName(item.FilePath)}{detalhe}");
+    }
+
+    if (sequencia.Count < maxFaixas)
+        Console.WriteLine($"\nO set parou aqui: não há mais faixas dentro do salto de {pedido.MaxBpmJump} BPM.");
 
     return;
 }
