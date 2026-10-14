@@ -78,8 +78,8 @@ foreach (var t in tracks)
 {
     var arquivo = Path.GetFileName(t.FilePath);
     var marca = t.NeedsReview
-    ? $"  [REVISAR: {t.ReviewReasons}]"
-    : t.ReviewReasons.HasFlag(ReviewReason.CatalogCode) ? "  (código de catálogo mantido)" : "";
+        ? $"  [REVISAR: {t.ReviewReasons}]"
+        : t.ReviewReasons.HasFlag(ReviewReason.CatalogCode) ? "  (código de catálogo mantido)" : "";
     Console.WriteLine($"[{arquivo}] {t.Artist} - {t.Title}{marca}");
 }
 
@@ -187,7 +187,21 @@ var destino = Console.ReadLine()?.Trim('"', ' ');
 if (string.IsNullOrWhiteSpace(destino))
     return;
 
-var plano = LibraryOrganizer.Plan(tracks, destino);
+var grupos = DuplicateDetector.Find(tracks);
+var duplicatas = grupos.SelectMany(g => g.Duplicates).Select(t => t.FilePath).ToHashSet();
+
+if (grupos.Count > 0)
+{
+    Console.WriteLine($"\n{grupos.Count} grupo(s) de duplicatas encontrado(s):");
+    foreach (var g in grupos)
+    {
+        Console.WriteLine($"   fica:  {Path.GetFileName(g.Keep.FilePath)}");
+        foreach (var d in g.Duplicates)
+            Console.WriteLine($"   copia: {Path.GetFileName(d.FilePath)}");
+    }
+}
+
+var plano = LibraryOrganizer.Plan(tracks, destino, duplicatas);
 
 Console.WriteLine("\n=== SIMULAÇÃO (nada será movido) ===\n");
 
@@ -198,7 +212,9 @@ foreach (var move in plano)
     Console.WriteLine($"{origem}\n   → {relativo}\n");
 }
 
-Console.WriteLine($"{plano.Count(m => !m.ToReview)} seriam organizadas, {plano.Count(m => m.ToReview)} iriam para _Revisar.");
+Console.WriteLine($"{plano.Count(m => !m.ToReview && !m.IsDuplicate)} seriam organizadas, " +
+                  $"{plano.Count(m => m.ToReview)} iriam para _Revisar, " +
+                  $"{plano.Count(m => m.IsDuplicate)} para _Duplicadas.");
 
 // ===== Mover de verdade (com confirmação) =====
 Console.Write("\nMover os arquivos de verdade? Digite SIM para confirmar: ");
