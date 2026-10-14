@@ -4,8 +4,8 @@ using CrateAgent.Core.Services;
 
 Console.OutputEncoding = Encoding.UTF8;
 
-// ===== Menu: organizar, desfazer ou avaliar gabarito =====
-Console.Write("1 = Organizar | 2 = Desfazer | 3 = Avaliar gabarito: ");
+// ===== Menu =====
+Console.Write("1 = Organizar | 2 = Desfazer | 3 = Avaliar gabarito | 4 = Importar BPM: ");
 var opcao = Console.ReadLine()?.Trim();
 
 if (opcao == "2")
@@ -67,6 +67,27 @@ if (opcao == "3")
     }
 
     Console.WriteLine($"Acertos: {certos}/{rows.Count} ({(double)certos / rows.Count:P0})");
+    return;
+}
+
+// ===== Importar BPM e tom de um CSV =====
+if (opcao == "4")
+{
+    Console.Write("Caminho do bpm.csv: ");
+    var bpmCsv = Console.ReadLine()?.Trim('"', ' ');
+
+    if (string.IsNullOrWhiteSpace(bpmCsv) || !File.Exists(bpmCsv))
+    {
+        Console.WriteLine("Arquivo não encontrado.");
+        return;
+    }
+
+    var aplicadas = BpmCsvImporter.Apply(tracks, bpmCsv);
+    Console.WriteLine($"\n{aplicadas} faixa(s) receberam BPM ou tom do CSV.\n");
+
+    foreach (var faixaBpm in tracks.Where(x => x.Bpm is not null || !string.IsNullOrWhiteSpace(x.Key)))
+        Console.WriteLine($"{Path.GetFileName(faixaBpm.FilePath)}  |  BPM: {faixaBpm.Bpm?.ToString() ?? "?"}  |  Tom: {faixaBpm.Key ?? "?"}");
+
     return;
 }
 
@@ -188,7 +209,7 @@ if (string.IsNullOrWhiteSpace(destino))
     return;
 
 var grupos = DuplicateDetector.Find(tracks);
-var duplicatas = grupos.SelectMany(g => g.Duplicates).Select(t => t.FilePath).ToHashSet();
+var duplicatas = grupos.SelectMany(g => g.Duplicates).Select(d => d.FilePath).ToHashSet();
 
 if (grupos.Count > 0)
 {
