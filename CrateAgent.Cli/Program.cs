@@ -83,6 +83,8 @@ if (opcao == "4")
     }
 
     var aplicadas = BpmCsvImporter.Apply(tracks, bpmCsv);
+    DuplicateDetector.ShareMetadata(DuplicateDetector.Find(tracks));
+
     Console.WriteLine($"\n{aplicadas} faixa(s) receberam BPM ou tom do CSV.\n");
 
     foreach (var faixaBpm in tracks.Where(x => x.Bpm is not null || !string.IsNullOrWhiteSpace(x.Key)))
@@ -105,7 +107,10 @@ if (opcao == "5")
 
     BpmCsvImporter.Apply(tracks, csvSet);
 
-    var copias = DuplicateDetector.Find(tracks)
+    var gruposSet = DuplicateDetector.Find(tracks);
+    DuplicateDetector.ShareMetadata(gruposSet);
+
+    var copias = gruposSet
         .SelectMany(g => g.Duplicates)
         .Select(d => d.FilePath)
         .ToHashSet();

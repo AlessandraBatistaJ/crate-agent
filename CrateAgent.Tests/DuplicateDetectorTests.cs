@@ -70,4 +70,32 @@ public class DuplicateDetectorTests : IDisposable
         Assert.Equal(a.FilePath, grupos[0].Keep.FilePath);
         Assert.Equal(2, grupos[0].Duplicates.Count);
     }
+
+    [Fact]
+    public void ShareMetadata_CopiaBpmETomParaOsOutrosMembros()
+    {
+        var original = Criar("Faixa.mp3", "x");
+        var copia = Criar("Faixa (1).mp3", "x");
+        copia.Bpm = 145;
+        copia.Key = "10B";
+
+        DuplicateDetector.ShareMetadata(DuplicateDetector.Find(new[] { original, copia }));
+
+        Assert.Equal(145, original.Bpm);
+        Assert.Equal("10B", original.Key);
+    }
+
+    [Fact]
+    public void ShareMetadata_NaoSobrescreveValoresExistentes()
+    {
+        var original = Criar("Faixa.mp3", "x");
+        var copia = Criar("Faixa (1).mp3", "x");
+        original.Bpm = 128;
+        copia.Bpm = 145;
+
+        DuplicateDetector.ShareMetadata(DuplicateDetector.Find(new[] { original, copia }));
+
+        Assert.Equal(128, original.Bpm);
+        Assert.Equal(145, copia.Bpm);
+    }
 }

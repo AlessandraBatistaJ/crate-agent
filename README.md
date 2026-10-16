@@ -5,7 +5,7 @@
 Organizador de bibliotecas de música, feito em C# / .NET 8.
 O projeto nasceu de um problema real: uma pasta de downloads do Bandcamp e de outras fontes, cheia de arquivos sem tags, com nomes sujos e códigos de selo misturados com o título.
 
-> 🚧 **Em construção.** A base de organização está pronta e testada. O agente de IA local (Ollama) existe como **experimento que só sugere** e ainda não altera nenhum arquivo. Detecção de BPM e curador de sets são as próximas fases.
+> 🚧 **Em construção.** Organização, revisão, duplicatas e um primeiro curador de sets estão prontos e testados. Um experimento com IA local (Ollama) existe, mas só **sugere**. A detecção automática de BPM é a próxima fase.
 
 ![Testes passando](docs/images/testes.png)
 
@@ -14,44 +14,57 @@ O projeto nasceu de um problema real: uma pasta de downloads do Bandcamp e de ou
 - ✅ **Scanner** que lê as tags dos arquivos de áudio (TagLibSharp)
 - ✅ **Fallback pelo nome do arquivo** quando as tags estão vazias (hífen, meia-risca e travessão como separadores)
 - ✅ **Limpeza de nomes**: remove a palavra "Premiere", posição de vinil (`A1`), código de lançamento (`MR021`) e o canal que aparece antes de "Premiere"
-- ✅ **Revisão de faixas**: artista ausente, título suspeito ou prefixo descartado vão para a pasta `_Revisar`
+- ✅ **Revisão automática**: artista ausente, título suspeito ou prefixo descartado vão para a pasta `_Revisar`
+- ✅ **Revisão manual** no console: aprovar, corrigir (`Artista - Título`) ou pular cada faixa
+- ✅ **Detecção de duplicatas** por hash do conteúdo (SHA-256). A cópia vai para `_Duplicadas`; nada é apagado
 - ✅ **Dry-run**: mostra para onde cada arquivo iria, sem mover nada
 - ✅ **Mover de verdade** com log em JSON e **desfazer** pelo log
-- ✅ **Avaliador de gabarito**: compara o resultado do programa com nomes que eu escrevi à mão
-- ✅ **65 testes automatizados** com xUnit
+- ✅ **Importação de BPM e tom** (notação Camelot) por CSV, com validação
+- ✅ **Curador de sets** por BPM crescente e compatibilidade na roda Camelot
+- ✅ **Avaliador de gabarito**: compara o resultado do programa com nomes escritos à mão
+- ✅ **CI** no GitHub Actions e **115 testes automatizados** com xUnit
 
 ## Como funciona
 
 ```
-Pasta de músicas ─► Scanner ─► Limpeza ─► Revisão ─► Plano (dry-run) ─► Mover (com log)
-                                                                              │
-                                                              Desfazer ◄──────┘
+Pasta de músicas ─► Scanner ─► Limpeza ─► Revisão ─► Duplicatas ─► Plano (dry-run) ─► Mover (com log)
+                                                                                           │
+                                                                           Desfazer ◄──────┘
+
+BPM e tom (CSV) ─► Curador de sets
 ```
 
 Faixas com dados confiáveis vão para `Artista Nome/Artista_Nome - Título_Nome.mp3`.
 Faixas duvidosas vão para `_Revisar`, **mantendo o nome original**.
 
-Exemplo real (46 faixas de uma pasta de teste: 35 organizadas, 11 em revisão):
+Exemplo real (46 faixas de uma pasta de teste: 41 organizadas, 4 em revisão, 1 duplicata):
 
 | Arquivo original | Destino |
 |---|---|
 | `MR036_Digital_Bonus_01_Human_Safari_-_Dorian.mp3` | `Human Safari/Human_Safari - Dorian.mp3` |
 | `Premiere_Bailey_Ibbs_JKS_-_Rituals_SMILE006.mp3` | `Bailey Ibbs JKS/Bailey_Ibbs_JKS - Rituals_SMILE006.mp3` |
-| `BCCO_Premiere_Red_Rooms_-_Debris_MR039.mp3` | `_Revisar/BCCO_Premiere_Red_Rooms_-_Debris_MR039.mp3` |
 | `Night_Train.mp3` | `_Revisar/Night_Train.mp3` |
+| `Isaiah_-_When_You_Touch_Me_..._Remix (1).mp3` | `_Duplicadas/...` |
+
+## Menu
+
+```
+1 = Organizar | 2 = Desfazer | 3 = Avaliar gabarito | 4 = Importar BPM | 5 = Montar set
+```
 
 ## Decisões de projeto
 
-- **O código só move o que tem certeza.** O resto vai para revisão.
+- **O código só move o que tem certeza.** O resto vai para revisão, e quem decide é uma pessoa.
 - **Ausência de informação não é um dado falso.** Por isso o BPM é `int?`, e não `int` com valor 0.
-- **Nunca sobrescreve arquivos.** Se o destino já existe, a faixa é ignorada.
-- **Tudo é reversível.** Cada movimentação é registrada em um log que permite desfazer. Testado movendo e desfazendo 46 arquivos.
-- **Código de catálogo no título é mantido** (`Rituals_SMILE006`), porque carrega informação útil sobre o lançamento.
-- **Prefixo descartado pede conferência.** Quando o programa remove o que vinha antes de "Premiere" (supondo que seja o canal), a faixa vai para `_Revisar`.
+- **Nunca sobrescreve e nunca apaga arquivos.** Se o destino já existe, a faixa é ignorada. Duplicatas vão para uma pasta, e quem decide é você.
+- **Tudo é reversível.** Cada movimentação é registrada em um log que permite desfazer.
+- **Código de catálogo no título é mantido** (`Rituals_SMILE006`), porque carrega informação sobre o lançamento.
+- **Prefixo descartado pede conferência.** Quando o programa remove o que vinha antes de "Premiere" (supondo que seja o canal), a faixa vai para revisão.
+- **Dado ruim não vira dado falso.** O importador de BPM só aceita tons de `1A` a `12B`; qualquer outra coisa vira "sem informação".
 
 ## Medindo em vez de achar
 
-Para saber se as regras funcionam, escrevi um **gabarito**: o nome final esperado de 45 arquivos de teste. O avaliador (opção 3 do menu) compara o programa com ele.
+Para saber se as regras funcionam, escrevi um **gabarito**: o nome final esperado de 45 arquivos de teste. O avaliador (opção 3) compara o programa com ele.
 
 | Versão | Acertos |
 |---|---|
@@ -68,18 +81,32 @@ Testei o `llama3.2` (rodando local, via Ollama) para sugerir artista e título:
 - Em 4 faixas **sem artista**, **inventou um artista** (`Ariana Grande`, sem nenhuma base no nome do arquivo) e repetiu o título como artista em outra.
 
 Por isso a IA **só sugere**, e uma camada de regras (`SuggestionGuard`) rejeita sugestões com palavras que não estão no nome do arquivo, artista igual ao título ou título com separador. Nesses 4 casos, o guarda barrou as 2 sugestões erradas.
-Conclusão atual: para extrair artista e título do nome do arquivo, regras funcionam melhor que um modelo pequeno. A IA fica reservada para tarefas em que regra não alcança.
+Conclusão atual: para extrair artista e título do nome do arquivo, regras funcionam melhor que um modelo pequeno. A IA fica reservada para tarefas em que regra não alcança, como interpretar pedidos de set em linguagem natural.
+
+## Curador de sets (versão inicial, sem IA)
+
+Dado um BPM inicial, um BPM final e um número máximo de faixas, o curador:
+
+1. considera só faixas com BPM dentro da faixa pedida, ordenadas do menor para o maior;
+2. aceita a próxima faixa só se o BPM não cair e o salto for de no máximo 4 BPM;
+3. entre as candidatas, prefere **tom compatível** na roda Camelot (mesmo tom, ±1 na mesma letra, ou a outra letra no mesmo número);
+4. para quando não houver faixa dentro do salto, em vez de forçar uma transição ruim.
+
+Testado com 10 faixas (137–146 BPM), cujo BPM e tom foram medidos à mão com um site de análise. **Isso mostra que o código segue as regras, não que o set soa bem**; essa avaliação é feita ouvindo.
 
 ## Limitações conhecidas
 
-- A regra que trata o texto antes de "Premiere" como canal também remove artistas legítimos nessa posição. Exemplo real: em `SIAH Premiere bmod`, o `SIAH` faz parte do nome. Por isso essas faixas vão para revisão, e não são organizadas sozinhas.
-- Duplicatas só são evitadas pelo nome (sufixo ` (2)`). Dois arquivos com a mesma duração e o mesmo tamanho ainda não são reconhecidos como duplicata.
-- `A1`, `MR021` e similares são tratados como lixo apenas no começo do artista, por regras simples. Nomes fora desse padrão podem passar.
+- A regra que trata o texto antes de "Premiere" como canal também remove artistas legítimos nessa posição. Exemplo real: em `SIAH Premiere bmod`, o `SIAH` faz parte do nome. Por isso essas faixas vão para revisão, e a pessoa corrige.
+- Duplicatas só são detectadas quando os arquivos são **idênticos byte a byte**. A mesma música em dois formatos ou bitrates não é reconhecida.
+- O `Program.cs` (a interface de console) não tem testes automatizados. Um bug real passou despercebido por isso: um trecho foi perdido ao colar código e as duplicatas deixaram de ser tratadas, e só uma execução manual mostrou.
+- As decisões da revisão manual e os BPMs importados **não são salvos** entre execuções. Persistência com SQLite está no roadmap.
+- O BPM vem de um CSV preenchido à mão. Ainda não há detecção automática.
+- O curador usa só BPM e tom: não considera energia, gênero nem duração em minutos.
 - O avaliador usa arquivos que também serviram para criar as regras (veja a ressalva acima).
 
 ## Stack
 
-C# · .NET 8 · xUnit · TagLibSharp · System.Text.Json · Ollama (experimental)
+C# · .NET 8 · xUnit · TagLibSharp · System.Text.Json · GitHub Actions · Ollama (experimental)
 
 ## Estrutura
 
@@ -89,8 +116,6 @@ CrateAgent.Cli     → interface de console
 CrateAgent.Tests   → testes automatizados
 ```
 
-Principais serviços: `LibraryScanner`, `FileNameParser`, `NameCleaner`, `TrackReviewer`, `LibraryOrganizer`, `LibraryMover`, `FileNameFormatter`, `OllamaTrackSuggester`, `SuggestionGuard` e `GabaritoEvaluator`.
-
 ## Como rodar
 
 ```bash
@@ -99,21 +124,23 @@ cd crate-agent
 dotnet run --project CrateAgent.Cli
 ```
 
-Menu: `1` organizar (com simulação e confirmação), `2` desfazer usando um log, `3` avaliar um gabarito.
-
 > ⚠️ Teste sempre em uma **cópia** da sua pasta de músicas. A IA é opcional e exige o Ollama instalado.
 
 ## Roadmap
 
-- [x] Scanner, limpeza e revisão
+- [x] Scanner, limpeza e revisão (automática e manual)
 - [x] Dry-run, mover e desfazer
 - [x] Gabarito e avaliador
 - [x] Experimento com IA local, com validação por regras
-- [ ] Detecção de duplicatas (duração, tamanho, hash)
-- [ ] Aprovar faixas em `_Revisar` pelo próprio programa
+- [x] Detecção de duplicatas por hash
+- [x] CI com GitHub Actions
+- [x] Importação de BPM e tom por CSV
+- [x] Curador de sets por BPM e tom (versão inicial)
+- [ ] Detecção automática de BPM (experimento medido contra valores conhecidos)
+- [ ] Set por duração em minutos
 - [ ] Persistência com SQLite
-- [ ] Detecção de BPM e tom
-- [ ] Curador de sets por BPM e tom harmônico
+- [ ] Pedido de set em linguagem natural (IA interpreta, código monta e valida)
+- [ ] Limpeza opcional de duplicatas (com conferência e envio à Lixeira)
 - [ ] Executável publicado em Releases
 
 ## Licença

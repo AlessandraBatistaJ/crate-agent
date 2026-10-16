@@ -22,7 +22,9 @@ public static class DuplicateDetector
 
         foreach (var sizeGroup in sameSize)
         {
-            foreach (var sameContent in sizeGroup.GroupBy(t => Hash(t.FilePath)).Where(g => g.Count() > 1))
+            foreach (var sameContent in sizeGroup
+                .GroupBy(t => Hash(t.FilePath))
+                .Where(g => g.Count() > 1))
             {
                 var ordered = sameContent
                     .OrderBy(t => HasCopyMarker(t.FilePath))
@@ -34,6 +36,25 @@ public static class DuplicateDetector
         }
 
         return groups;
+    }
+
+    public static void ShareMetadata(IEnumerable<DuplicateGroup> groups)
+    {
+        foreach (var group in groups)
+        {
+            var members = group.Duplicates.Prepend(group.Keep).ToList();
+
+            var bpm = members.Select(t => t.Bpm).FirstOrDefault(b => b is not null);
+            var key = members.Select(t => t.Key).FirstOrDefault(k => !string.IsNullOrWhiteSpace(k));
+
+            foreach (var member in members)
+            {
+                member.Bpm ??= bpm;
+
+                if (string.IsNullOrWhiteSpace(member.Key))
+                    member.Key = key;
+            }
+        }
     }
 
     private static bool HasCopyMarker(string path) =>
