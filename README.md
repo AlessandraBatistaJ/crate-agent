@@ -124,7 +124,7 @@ cd crate-agent
 dotnet run --project CrateAgent.Cli
 ```
 
-> ⚠️ Teste sempre em uma **cópia** da sua pasta de músicas. A IA é opcional e exige o Ollama instalado.
+> ⚠️ Teste sempre em uma **cópia** da sua pasta de músicas. A IA é opcional e exige o Ollama instalado localmente.
 
 ## Roadmap
 
