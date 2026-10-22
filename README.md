@@ -101,16 +101,17 @@ Testado com 10 faixas (137–146 BPM), cujo BPM e tom foram medidos à mão com 
 
 O BPM pode ser detectado por código: um filtro deixa só os graves (onde o bumbo mora), o programa mede os picos de energia e testa cada BPM de 90 a 180 para ver qual encaixa melhor nos picos. A janela de 90 a 180 é uma suposição: uma faixa de 70 BPM real sai como 140.
 
-Medido em 10 faixas MP3 (137–146 BPM), contra os valores de um site de análise:
+Duas medições em faixas MP3, contra valores de ferramentas externas, **sem ajuste do algoritmo entre elas**:
 
-| Resultado | Faixas |
-|---|---|
-| Dentro de ±1 BPM | 9/10 (erro médio de 0,2 BPM) |
-| Fora | 1 (esperado 140, detectado 136,4; causa não investigada) |
+| Medição | Referência | Faixas | Dentro de ±1 BPM |
+|---|---|---|---|
+| 1 | Site de análise | 10 (137–146 BPM) | 9/10 |
+| 2 | Rekordbox | 10 (128–145 BPM), pasta que o código nunca tinha visto | 10/10 |
 
-O critério de aprovação (8 de 10) foi definido **antes** da medição, e o algoritmo não foi ajustado depois de ver o resultado.
+O erro médio nas faixas que bateram é de cerca de 0,2 BPM, e o detector tende a ficar ligeiramente abaixo da referência. A única faixa fora (esperado 140, detectado 136,4) não foi investigada.
+O critério de aprovação (8 de 10) foi definido **antes** de cada medição.
 
-⚠️ **Ressalvas:** a amostra é pequena, só tem música eletrônica com bumbo marcado e a referência é outro detector. Faixas lentas e outros gêneros ainda não foram testados.
+⚠️ **Ressalvas:** 20 faixas no total, todas de música eletrônica com bumbo marcado e entre 128 e 146 BPM. **Faixas lentas e outros gêneros ainda não foram testados**, e as referências são outras ferramentas de detecção.
 
 ## Limitações conhecidas
 
@@ -118,7 +119,7 @@ O critério de aprovação (8 de 10) foi definido **antes** da medição, e o al
 - Duplicatas só são detectadas quando os arquivos são **idênticos byte a byte**. A mesma música em dois formatos ou bitrates não é reconhecida.
 - O `Program.cs` (a interface de console) não tem testes automatizados. Um bug real passou despercebido por isso: um trecho foi perdido ao colar código e as duplicatas deixaram de ser tratadas, e só uma execução manual mostrou.
 - A leitura de MP3 (`Mp3Decoder`) também não tem teste automatizado, e a detecção de BPM só funciona com MP3.
-- O detector de BPM é um experimento validado em poucas faixas. O **tom (Camelot) ainda vem de um CSV** preenchido à mão.
+- O detector de BPM foi validado em 20 faixas, todas entre 128 e 146 BPM. Faixas lentas e outros gêneros não foram testados. O **tom (Camelot) ainda vem de um CSV** preenchido à mão.
 - As decisões da revisão manual e os BPMs importados **não são salvos** entre execuções. Persistência com SQLite está no roadmap.
 - O curador usa só BPM e tom: não considera energia, gênero nem duração em minutos, e ainda não usa o BPM detectado automaticamente.
 - O avaliador de nomes usa arquivos que também serviram para criar as regras (veja a ressalva acima).
@@ -157,9 +158,10 @@ dotnet run --project CrateAgent.Cli
 - [x] CI com GitHub Actions
 - [x] Importação de BPM e tom por CSV
 - [x] Curador de sets por BPM e tom (versão inicial)
-- [x] Detector de BPM por código (9/10 em 10 faixas)
-- [ ] Segunda medição do detector, com faixas lentas e de outros estilos
+- [x] Detector de BPM por código (9/10 e 10/10 em duas medições)
+- [x] Segunda medição do detector (pasta nova, Rekordbox como referência)
 - [ ] Salvar o BPM detectado em CSV para alimentar o curador
+- [ ] Medição com faixas lentas (abaixo de 90 BPM) e de outros gêneros
 - [ ] Detecção de tom
 - [ ] Set por duração em minutos
 - [ ] Persistência com SQLite
