@@ -5,7 +5,7 @@ using CrateAgent.Core.Services;
 Console.OutputEncoding = Encoding.UTF8;
 
 // ===== Menu =====
-Console.Write("1 = Organizar | 2 = Desfazer | 3 = Avaliar gabarito | 4 = Importar BPM | 5 = Montar set | 6 = Detectar BPM: ");
+Console.Write("1 = Organizar | 2 = Desfazer | 3 = Avaliar gabarito | 4 = Importar BPM | 5 = Montar set | 6 = Detectar BPM (medir) | 7 = Detectar BPM (salvar em CSV): ");
 var opcao = Console.ReadLine()?.Trim();
 
 if (opcao == "2")
@@ -164,7 +164,7 @@ if (opcao == "5")
     return;
 }
 
-// ===== Detectar BPM e comparar com o CSV =====
+// ===== Detectar BPM e comparar com o CSV (medição) =====
 if (opcao == "6")
 {
     Console.Write("Caminho do bpm.csv (valores de referência): ");
@@ -234,6 +234,98 @@ if (opcao == "6")
     Console.WriteLine($"\nDentro de ±1 BPM: {contagem.GetValueOrDefault(BpmVerdict.Ok)}/{alvo.Count}");
     Console.WriteLine($"Dobro: {contagem.GetValueOrDefault(BpmVerdict.Double)} | Metade: {contagem.GetValueOrDefault(BpmVerdict.Half)} | " +
                       $"Outro: {contagem.GetValueOrDefault(BpmVerdict.Other)} | Sem resultado ou falha: {falhas}");
+    return;
+}
+
+// ===== Detectar BPM da biblioteca e salvar em CSV =====
+if (opcao == "7")
+{
+    Console.Write("Caminho do bpm.csv com valores manuais (Enter para pular): ");
+    var csvManual = Console.ReadLine()?.Trim('"', ' ');
+
+    Console.Write("Caminho do CSV de saída (será criado ou continuado): ");
+    var csvSaida = Console.ReadLine()?.Trim('"', ' ');
+
+    if (string.IsNullOrWhiteSpace(csvSaida))
+    {
+        Console.WriteLine("Informe um caminho para o CSV de saída.");
+        return;
+    }
+
+    // valores manuais têm prioridade; depois entra o que já foi detectado antes
+    if (!string.IsNullOrWhiteSpace(csvManual) && File.Exists(csvManual))
+        BpmCsvImporter.Apply(tracks, csvManual);
+
+    if (File.Exists(csvSaida))
+        BpmCsvImporter.Apply(tracks, csvSaida);
+
+    var gruposBpm = DuplicateDetector.Find(tracks);
+    DuplicateDetector.ShareMetadata(gruposBpm);
+
+    var copiasBpm = gruposBpm
+        .SelectMany(g => g.Duplicates)
+        .Select(d => d.FilePath)
+        .ToHashSet();
+
+    var jaTinham = tracks.Count(x => x.Bpm is not null && !copiasBpm.Contains(x.FilePath));
+    var semBpm = tracks.Where(x => x.Bpm is null && !copiasBpm.Contains(x.FilePath)).ToList();
+    var mp3SemBpm = semBpm.Where(x => x.FilePath.EndsWith(".mp3", StringComparison.OrdinalIgnoreCase)).ToList();
+    var outrosFormatos = semBpm.Count - mp3SemBpm.Count;
+
+    Console.WriteLine($"\n{jaTinham} faixa(s) já têm BPM. Detectando {mp3SemBpm.Count} faixa(s) MP3 " +
+                      $"({outrosFormatos} em outros formatos serão puladas).\n");
+
+    if (mp3SemBpm.Count == 0)
+    {
+        Console.WriteLine("Nada a detectar.");
+        return;
+    }
+
+    var salvas = 0;
+    var falhasBpm = 0;
+    var nomesInvalidos = 0;
+    var indice = 0;
+
+    foreach (var faixaDet in mp3SemBpm)
+    {
+        indice++;
+        var nomeDet = Path.GetFileName(faixaDet.FilePath);
+        var posicao = $"[{indice}/{mp3SemBpm.Count}]";
+
+        try
+        {
+            var (amostrasDet, taxaDet) = Mp3Decoder.ReadMono(faixaDet.FilePath);
+            var bpmDet = BpmDetector.Detect(amostrasDet, taxaDet);
+
+            if (bpmDet is null)
+            {
+                Console.WriteLine($"{posicao} SEM RESULTADO  {nomeDet}");
+                falhasBpm++;
+                continue;
+            }
+
+            var valorDet = bpmDet.Value;
+
+            if (!BpmCsvWriter.Append(csvSaida, nomeDet, valorDet))
+            {
+                Console.WriteLine($"{posicao} NOME NÃO SUPORTADO NO CSV  {nomeDet}");
+                nomesInvalidos++;
+                continue;
+            }
+
+            salvas++;
+            Console.WriteLine($"{posicao} {valorDet,6:F1} BPM  {nomeDet}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"{posicao} FALHOU  {nomeDet}: {ex.Message}");
+            falhasBpm++;
+        }
+    }
+
+    Console.WriteLine($"\n{salvas} BPM(s) salvos em {csvSaida}");
+    Console.WriteLine($"Sem resultado ou falha: {falhasBpm} | Nome não suportado: {nomesInvalidos}");
+    Console.WriteLine("Para usar no curador, informe esse CSV na opção 5.");
     return;
 }
 
