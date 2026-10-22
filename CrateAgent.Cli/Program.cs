@@ -5,7 +5,7 @@ using CrateAgent.Core.Services;
 Console.OutputEncoding = Encoding.UTF8;
 
 // ===== Menu =====
-Console.Write("1 = Organizar | 2 = Desfazer | 3 = Avaliar gabarito | 4 = Importar BPM | 5 = Montar set: ");
+Console.Write("1 = Organizar | 2 = Desfazer | 3 = Avaliar gabarito | 4 = Importar BPM | 5 = Montar set | 6 = Detectar BPM: ");
 var opcao = Console.ReadLine()?.Trim();
 
 if (opcao == "2")
@@ -161,6 +161,79 @@ if (opcao == "5")
     if (sequencia.Count < maxFaixas)
         Console.WriteLine($"\nO set parou aqui: não há mais faixas dentro do salto de {pedido.MaxBpmJump} BPM.");
 
+    return;
+}
+
+// ===== Detectar BPM e comparar com o CSV =====
+if (opcao == "6")
+{
+    Console.Write("Caminho do bpm.csv (valores de referência): ");
+    var csvDetect = Console.ReadLine()?.Trim('"', ' ');
+
+    if (string.IsNullOrWhiteSpace(csvDetect) || !File.Exists(csvDetect))
+    {
+        Console.WriteLine("Arquivo não encontrado.");
+        return;
+    }
+
+    BpmCsvImporter.Apply(tracks, csvDetect);
+
+    var gruposDetect = DuplicateDetector.Find(tracks);
+    DuplicateDetector.ShareMetadata(gruposDetect);
+
+    var copiasDetect = gruposDetect
+        .SelectMany(g => g.Duplicates)
+        .Select(d => d.FilePath)
+        .ToHashSet();
+    var alvo = tracks.Where(x => x.Bpm is not null && !copiasDetect.Contains(x.FilePath)).ToList();
+
+    Console.WriteLine($"\nDetectando o BPM de {alvo.Count} faixa(s)...\n");
+
+    var contagem = new Dictionary<BpmVerdict, int>();
+    var falhas = 0;
+
+    foreach (var faixaAlvo in alvo)
+    {
+        var nome = Path.GetFileName(faixaAlvo.FilePath);
+
+        if (!nome.EndsWith(".mp3", StringComparison.OrdinalIgnoreCase))
+        {
+            Console.WriteLine($"PULOU   {nome} (só MP3 por enquanto)");
+            falhas++;
+            continue;
+        }
+
+        try
+        {
+            var cronometro = System.Diagnostics.Stopwatch.StartNew();
+            var (amostras, taxa) = Mp3Decoder.ReadMono(faixaAlvo.FilePath);
+            var detectado = BpmDetector.Detect(amostras, taxa);
+            cronometro.Stop();
+
+            if (detectado is null)
+            {
+                Console.WriteLine($"SEM RESULTADO   {nome}");
+                falhas++;
+                continue;
+            }
+
+            var esperado = faixaAlvo.Bpm!.Value;
+            var valor = detectado.Value;
+            var veredito = BpmDetector.Classify(valor, esperado);
+            contagem[veredito] = contagem.GetValueOrDefault(veredito) + 1;
+
+            Console.WriteLine($"{veredito,-6}  esperado {esperado,3}  |  detectado {valor,6:F1}  |  {cronometro.Elapsed.TotalSeconds:F1}s  |  {nome}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"FALHOU  {nome}: {ex.Message}");
+            falhas++;
+        }
+    }
+
+    Console.WriteLine($"\nDentro de ±1 BPM: {contagem.GetValueOrDefault(BpmVerdict.Ok)}/{alvo.Count}");
+    Console.WriteLine($"Dobro: {contagem.GetValueOrDefault(BpmVerdict.Double)} | Metade: {contagem.GetValueOrDefault(BpmVerdict.Half)} | " +
+                      $"Outro: {contagem.GetValueOrDefault(BpmVerdict.Other)} | Sem resultado ou falha: {falhas}");
     return;
 }
 
