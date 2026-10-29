@@ -2,6 +2,8 @@
 
 public enum BpmVerdict { Ok, Double, Half, Other }
 
+public record BpmCandidate(double Bpm, double Score);
+
 public static class BpmDetector
 {
     private const double StartSeconds = 30;   // pula a introdução, se a faixa for longa
@@ -10,8 +12,75 @@ public static class BpmDetector
     private const double CutoffHz = 150;      // só os graves (bumbo)
     private const int MinFrames = 500;        // menos de ~5 s não dá para medir
     private const double Step = 0.1;
+    private const double MinPeakSeparation = 3.0;
 
     public static double? Detect(float[] samples, int sampleRate, double minBpm = 90, double maxBpm = 180)
+    {
+        var curve = ScoreCurve(samples, sampleRate, minBpm, maxBpm);
+
+        if (curve is null)
+            return null;
+
+        var best = 0;
+
+        for (var i = 1; i < curve.Length; i++)
+        {
+            if (curve[i].Score > curve[best].Score)
+                best = i;
+        }
+
+        return Math.Round(curve[best].Bpm, 1);
+    }
+
+    // os melhores picos da curva de pontuação, separados por pelo menos 3 BPM
+    public static IReadOnlyList<BpmCandidate> TopCandidates(
+        float[] samples, int sampleRate, int count = 5, double minBpm = 90, double maxBpm = 180)
+    {
+        var curve = ScoreCurve(samples, sampleRate, minBpm, maxBpm);
+
+        if (curve is null || count <= 0)
+            return Array.Empty<BpmCandidate>();
+
+        var peaks = new List<BpmCandidate>();
+
+        for (var i = 0; i < curve.Length; i++)
+        {
+            var left = i == 0 ? double.MinValue : curve[i - 1].Score;
+            var right = i == curve.Length - 1 ? double.MinValue : curve[i + 1].Score;
+
+            if (curve[i].Score > left && curve[i].Score >= right)
+                peaks.Add(curve[i]);
+        }
+
+        var selected = new List<BpmCandidate>();
+
+        foreach (var peak in peaks.OrderByDescending(p => p.Score))
+        {
+            if (selected.All(s => Math.Abs(s.Bpm - peak.Bpm) >= MinPeakSeparation))
+                selected.Add(peak);
+
+            if (selected.Count == count)
+                break;
+        }
+
+        return selected.Select(c => c with { Bpm = Math.Round(c.Bpm, 1) }).ToList();
+    }
+
+    public static BpmVerdict Classify(double detected, double expected)
+    {
+        if (Math.Abs(detected - expected) <= 1.0)
+            return BpmVerdict.Ok;
+
+        if (Math.Abs(detected - expected * 2) <= 2.0)
+            return BpmVerdict.Double;
+
+        if (Math.Abs(detected - expected / 2) <= 1.0)
+            return BpmVerdict.Half;
+
+        return BpmVerdict.Other;
+    }
+
+    private static BpmCandidate[]? ScoreCurve(float[] samples, int sampleRate, double minBpm, double maxBpm)
     {
         if (samples.Length == 0 || sampleRate <= 0 || maxBpm <= minBpm)
             return null;
@@ -89,8 +158,11 @@ public static class BpmDetector
 
         // 4. para cada BPM candidato, soma a correlação em 1, 2, 3 e 4 tempos
         var steps = (int)Math.Round((maxBpm - minBpm) / Step);
-        var bestBpm = minBpm;
-        var bestScore = double.MinValue;
+
+        if (steps <= 0)
+            return null;
+
+        var curve = new BpmCandidate[steps];
 
         for (var s = 0; s < steps; s++)
         {
@@ -101,27 +173,9 @@ public static class BpmDetector
             for (var k = 1; k <= 4; k++)
                 score += Correlation(k * period);
 
-            if (score > bestScore)
-            {
-                bestScore = score;
-                bestBpm = bpm;
-            }
+            curve[s] = new BpmCandidate(bpm, score);
         }
 
-        return Math.Round(bestBpm, 1);
-    }
-
-    public static BpmVerdict Classify(double detected, double expected)
-    {
-        if (Math.Abs(detected - expected) <= 1.0)
-            return BpmVerdict.Ok;
-
-        if (Math.Abs(detected - expected * 2) <= 2.0)
-            return BpmVerdict.Double;
-
-        if (Math.Abs(detected - expected / 2) <= 1.0)
-            return BpmVerdict.Half;
-
-        return BpmVerdict.Other;
+        return curve;
     }
 }

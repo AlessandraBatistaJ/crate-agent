@@ -86,4 +86,38 @@ public class BpmDetectorTests
     {
         Assert.Equal(veredito, BpmDetector.Classify(detectado, esperado));
     }
+
+    [Fact]
+    public void TopCandidates_PrimeiroEIgualAoDetect()
+    {
+        var faixa = ClickTrack(128);
+
+        var candidatos = BpmDetector.TopCandidates(faixa, SampleRate);
+
+        Assert.NotEmpty(candidatos);
+        Assert.Equal(BpmDetector.Detect(faixa, SampleRate)!.Value, candidatos[0].Bpm);
+    }
+
+    [Fact]
+    public void TopCandidates_SaoOrdenadosPorPontuacaoESeparados()
+    {
+        var candidatos = BpmDetector.TopCandidates(ClickTrack(140), SampleRate, count: 5);
+
+        Assert.InRange(candidatos.Count, 2, 5);
+
+        for (var i = 1; i < candidatos.Count; i++)
+            Assert.True(candidatos[i].Score <= candidatos[i - 1].Score);
+
+        for (var i = 0; i < candidatos.Count; i++)
+        {
+            for (var j = i + 1; j < candidatos.Count; j++)
+                Assert.True(Math.Abs(candidatos[i].Bpm - candidatos[j].Bpm) >= 2.9);
+        }
+    }
+
+    [Fact]
+    public void TopCandidates_SemSinal_RetornaVazio()
+    {
+        Assert.Empty(BpmDetector.TopCandidates(new float[SampleRate * 40], SampleRate));
+    }
 }

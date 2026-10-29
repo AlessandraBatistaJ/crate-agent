@@ -5,7 +5,7 @@ using CrateAgent.Core.Services;
 Console.OutputEncoding = Encoding.UTF8;
 
 // ===== Menu =====
-Console.Write("1 = Organizar | 2 = Desfazer | 3 = Avaliar gabarito | 4 = Importar BPM | 5 = Montar set | 6 = Detectar BPM (medir) | 7 = Detectar BPM (salvar em CSV): ");
+Console.Write("1 = Organizar | 2 = Desfazer | 3 = Avaliar gabarito | 4 = Importar BPM | 5 = Montar set | 6 = Detectar BPM (medir) | 7 = Detectar BPM (salvar em CSV) | 8 = Diagnosticar BPM: ");
 var opcao = Console.ReadLine()?.Trim();
 
 if (opcao == "2")
@@ -326,6 +326,60 @@ if (opcao == "7")
     Console.WriteLine($"\n{salvas} BPM(s) salvos em {csvSaida}");
     Console.WriteLine($"Sem resultado ou falha: {falhasBpm} | Nome não suportado: {nomesInvalidos}");
     Console.WriteLine("Para usar no curador, informe esse CSV na opção 5.");
+    return;
+}
+
+// ===== Diagnosticar BPM: mostra os melhores candidatos de cada faixa =====
+if (opcao == "8")
+{
+    Console.WriteLine("Digite um trecho do nome do arquivo (Enter para sair).");
+
+    while (true)
+    {
+        Console.Write("\nTrecho do nome: ");
+        var trecho = Console.ReadLine()?.Trim();
+
+        if (string.IsNullOrWhiteSpace(trecho))
+            break;
+
+        var achadas = tracks
+            .Where(x => x.FilePath.EndsWith(".mp3", StringComparison.OrdinalIgnoreCase) &&
+                        Path.GetFileName(x.FilePath).Contains(trecho, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        if (achadas.Count == 0)
+        {
+            Console.WriteLine("Nenhum MP3 encontrado com esse trecho.");
+            continue;
+        }
+
+        foreach (var faixaDiag in achadas)
+        {
+            Console.WriteLine($"\n{Path.GetFileName(faixaDiag.FilePath)}");
+
+            try
+            {
+                var (amostrasDiag, taxaDiag) = Mp3Decoder.ReadMono(faixaDiag.FilePath);
+                var candidatosDiag = BpmDetector.TopCandidates(amostrasDiag, taxaDiag);
+
+                if (candidatosDiag.Count == 0)
+                {
+                    Console.WriteLine("   sem resultado");
+                    continue;
+                }
+
+                var melhor = candidatosDiag[0].Score;
+
+                foreach (var candidato in candidatosDiag)
+                    Console.WriteLine($"   {candidato.Bpm,6:F1} BPM   {candidato.Score / melhor,4:P0} da melhor");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"   FALHOU: {ex.Message}");
+            }
+        }
+    }
+
     return;
 }
 
