@@ -5,7 +5,7 @@
 Organizador de bibliotecas de música, feito em C# / .NET 8.
 O projeto nasceu de um problema real: uma pasta de downloads do Bandcamp e de outras fontes, cheia de arquivos sem tags, com nomes sujos e códigos de selo misturados com o título.
 
-> 🚧 **Em construção.** Organização, revisão, duplicatas, curador de sets e um primeiro detector de BPM estão prontos e testados. Um experimento com IA local (Ollama) existe, mas só **sugere**. O tom (Camelot) ainda vem de um CSV.
+> 🚧 **Em construção.** Organização, revisão, duplicatas, curador de sets e um detector de BPM estão prontos e testados. O detector **ainda erra em parte das faixas** (veja abaixo), e um experimento com IA local (Ollama) existe, mas só **sugere**. O tom (Camelot) ainda vem de um CSV.
 
 ![Testes passando](docs/images/testes.png)
 
@@ -21,9 +21,9 @@ O projeto nasceu de um problema real: uma pasta de downloads do Bandcamp e de ou
 - ✅ **Mover de verdade** com log em JSON e **desfazer** pelo log
 - ✅ **Importação de BPM e tom** (notação Camelot) por CSV, com validação
 - ✅ **Curador de sets** por BPM crescente e compatibilidade na roda Camelot
-- ✅ **Detector de BPM por código** (experimento medido, veja abaixo)
+- ✅ **Detector de BPM por código**, que salva o resultado em CSV (a origem do número fica na coluna `obs`) e mostra os melhores candidatos de cada faixa para diagnóstico
 - ✅ **Avaliador de gabarito**: compara o resultado do programa com nomes escritos à mão
-- ✅ **CI** no GitHub Actions e **128 testes automatizados** com xUnit
+- ✅ **CI** no GitHub Actions e **137 testes automatizados** com xUnit
 
 ## Como funciona
 
@@ -32,8 +32,7 @@ Pasta de músicas ─► Scanner ─► Limpeza ─► Revisão ─► Duplicata
                                                                                            │
                                                                            Desfazer ◄──────┘
 
-BPM e tom (CSV) ─► Curador de sets
-MP3 ─► Decodificador ─► Detector de BPM  (experimento, comparado com o CSV)
+MP3 ─► Decodificador ─► Detector de BPM ─► CSV (bpm; origem) ─► Curador de sets
 ```
 
 Faixas com dados confiáveis vão para `Artista Nome/Artista_Nome - Título_Nome.mp3`.
@@ -51,7 +50,8 @@ Exemplo real (46 faixas de uma pasta de teste). Depois da revisão manual de 7 f
 ## Menu
 
 ```
-1 = Organizar | 2 = Desfazer | 3 = Avaliar gabarito | 4 = Importar BPM | 5 = Montar set | 6 = Detectar BPM
+1 = Organizar | 2 = Desfazer | 3 = Avaliar gabarito | 4 = Importar BPM | 5 = Montar set
+6 = Detectar BPM (medir) | 7 = Detectar BPM (salvar em CSV) | 8 = Diagnosticar BPM
 ```
 
 ## Decisões de projeto
@@ -63,6 +63,7 @@ Exemplo real (46 faixas de uma pasta de teste). Depois da revisão manual de 7 f
 - **Código de catálogo no título é mantido** (`Rituals_SMILE006`), porque carrega informação sobre o lançamento.
 - **Prefixo descartado pede conferência.** Quando o programa remove o que vinha antes de "Premiere" (supondo que seja o canal), a faixa vai para revisão.
 - **Dado ruim não vira dado falso.** O importador de BPM só aceita tons de `1A` a `12B`; qualquer outra coisa vira "sem informação".
+- **Valor manual vale mais que valor detectado.** O CSV guarda a origem de cada BPM (`detectado`, `rekordbox`), e valores corrigidos à mão nunca são sobrescritos.
 - **Medir antes de decidir.** Os critérios de aprovação dos experimentos foram definidos antes de rodá-los.
 
 ## Medindo em vez de achar
@@ -95,23 +96,32 @@ Dado um BPM inicial, um BPM final e um número máximo de faixas, o curador:
 3. entre as candidatas, prefere **tom compatível** na roda Camelot (mesmo tom, ±1 na mesma letra, ou a outra letra no mesmo número);
 4. para quando não houver faixa dentro do salto, em vez de forçar uma transição ruim.
 
-Testado com 10 faixas (137–146 BPM), cujo BPM e tom foram medidos à mão com um site de análise. **Isso mostra que o código segue as regras, não que o set soa bem**; essa avaliação é feita ouvindo.
+**Limitação:** ele só ordena do mais baixo para o mais alto, e não tem um destino. Pedindo 120 a 150 BPM com 15 faixas, o set foi de 132 a 142.
+Testado com faixas de BPM medido (à mão e por código). **Isso mostra que o código segue as regras, não que o set soa bem**; essa avaliação é feita ouvindo.
 
-## Detecção de BPM (experimento)
+## Detecção de BPM
 
 O BPM pode ser detectado por código: um filtro deixa só os graves (onde o bumbo mora), o programa mede os picos de energia e testa cada BPM de 90 a 180 para ver qual encaixa melhor nos picos. A janela de 90 a 180 é uma suposição: uma faixa de 70 BPM real sai como 140.
 
-Duas medições em faixas MP3, contra valores de ferramentas externas, **sem ajuste do algoritmo entre elas**:
+**Medições com referência externa**, sem ajuste do algoritmo entre elas:
 
 | Medição | Referência | Faixas | Dentro de ±1 BPM |
 |---|---|---|---|
 | 1 | Site de análise | 10 (137–146 BPM) | 9/10 |
 | 2 | Rekordbox | 10 (128–145 BPM), pasta que o código nunca tinha visto | 10/10 |
 
-O erro médio nas faixas que bateram é de cerca de 0,2 BPM, e o detector tende a ficar ligeiramente abaixo da referência. A única faixa fora (esperado 140, detectado 136,4) não foi investigada.
-O critério de aprovação (8 de 10) foi definido **antes** de cada medição.
+**Em escala (35 faixas, sem referência):** 31 saíram entre 131 e 149 BPM e 4 fora dessa faixa. As 4 foram conferidas no Rekordbox, e **3 estavam erradas**:
 
-⚠️ **Ressalvas:** 20 faixas no total, todas de música eletrônica com bumbo marcado e entre 128 e 146 BPM. **Faixas lentas e outros gêneros ainda não foram testados**, e as referências são outras ferramentas de detecção.
+| Faixa | Detector | Rekordbox |
+|---|---|---|
+| Cirkle - Silent Rage | 92,7 | 139 |
+| Bailey Ibbs JKS - Rituals | 96,8 | 145 |
+| Side To Side | 162,2 | 153 |
+| GIO - I Wanna Dance | 151,9 | 152 (certa) |
+
+Nas duas primeiras, o detector achou exatamente **2/3 do andamento real** (92,7 × 1,5 ≈ 139; 96,8 × 1,5 ≈ 145). Na terceira, a causa é desconhecida.
+
+⚠️ **Ressalvas:** as 4 foram escolhidas por parecerem estranhas, então isso **não é uma taxa de erro**; as outras 31 não foram conferidas. O que se sabe é que **ao menos 3 das 35 (cerca de 9%) estão erradas**. As faixas testadas são todas de música eletrônica com bumbo marcado, e as referências são outras ferramentas de detecção. O algoritmo ainda não foi corrigido: o próximo passo é diagnosticar (opção 8) e validar em faixas independentes antes de mudar qualquer coisa.
 
 ## Limitações conhecidas
 
@@ -119,9 +129,11 @@ O critério de aprovação (8 de 10) foi definido **antes** de cada medição.
 - Duplicatas só são detectadas quando os arquivos são **idênticos byte a byte**. A mesma música em dois formatos ou bitrates não é reconhecida.
 - O `Program.cs` (a interface de console) não tem testes automatizados. Um bug real passou despercebido por isso: um trecho foi perdido ao colar código e as duplicatas deixaram de ser tratadas, e só uma execução manual mostrou.
 - A leitura de MP3 (`Mp3Decoder`) também não tem teste automatizado, e a detecção de BPM só funciona com MP3.
-- O detector de BPM foi validado em 20 faixas, todas entre 128 e 146 BPM. Faixas lentas e outros gêneros não foram testados. O **tom (Camelot) ainda vem de um CSV** preenchido à mão.
-- As decisões da revisão manual e os BPMs importados **não são salvos** entre execuções. Persistência com SQLite está no roadmap.
-- O curador usa só BPM e tom: não considera energia, gênero nem duração em minutos, e ainda não usa o BPM detectado automaticamente.
+- **O BPM detectado pode estar errado sem nenhum aviso** (veja acima), e o curador o usa como se estivesse certo. Os valores errados conhecidos foram corrigidos à mão no CSV.
+- Os CSVs de BPM são indexados pelo **nome do arquivo**. Dois arquivos com o mesmo nome em pastas diferentes colidem.
+- O **tom (Camelot) ainda vem de um CSV** preenchido à mão. Sem ele, todo set mostra "tom desconhecido".
+- As decisões da revisão manual **não são salvas** entre execuções. Persistência com SQLite está no roadmap.
+- O curador usa só BPM e tom: não considera energia, gênero nem duração em minutos.
 - O avaliador de nomes usa arquivos que também serviram para criar as regras (veja a ressalva acima).
 
 ## Stack
@@ -136,7 +148,7 @@ CrateAgent.Cli     → interface de console
 CrateAgent.Tests   → testes automatizados
 ```
 
-Principais serviços: `LibraryScanner`, `FileNameParser`, `NameCleaner`, `TrackReviewer`, `ManualReview`, `DuplicateDetector`, `LibraryOrganizer`, `LibraryMover`, `FileNameFormatter`, `BpmCsvImporter`, `SetCurator`, `BpmDetector`, `Mp3Decoder`, `OllamaTrackSuggester`, `SuggestionGuard` e `GabaritoEvaluator`.
+Principais serviços: `LibraryScanner`, `FileNameParser`, `NameCleaner`, `TrackReviewer`, `ManualReview`, `DuplicateDetector`, `LibraryOrganizer`, `LibraryMover`, `FileNameFormatter`, `BpmCsvImporter`, `BpmCsvWriter`, `SetCurator`, `BpmDetector`, `Mp3Decoder`, `OllamaTrackSuggester`, `SuggestionGuard` e `GabaritoEvaluator`.
 
 ## Como rodar
 
@@ -158,11 +170,13 @@ dotnet run --project CrateAgent.Cli
 - [x] CI com GitHub Actions
 - [x] Importação de BPM e tom por CSV
 - [x] Curador de sets por BPM e tom (versão inicial)
-- [x] Detector de BPM por código (9/10 e 10/10 em duas medições)
-- [x] Segunda medição do detector (pasta nova, Rekordbox como referência)
-- [ ] Salvar o BPM detectado em CSV para alimentar o curador
+- [x] Detector de BPM por código, com salvamento em CSV
+- [x] Duas medições do detector com referência externa (9/10 e 10/10)
+- [ ] Investigar os erros do detector em escala (diagnóstico e validação em faixas independentes)
 - [ ] Medição com faixas lentas (abaixo de 90 BPM) e de outros gêneros
+- [ ] Set com destino: um arco de BPM até o valor final pedido
 - [ ] Detecção de tom
+- [ ] Indexar os CSVs pelo caminho relativo, e não pelo nome do arquivo
 - [ ] Set por duração em minutos
 - [ ] Persistência com SQLite
 - [ ] Pedido de set em linguagem natural (IA interpreta, código monta e valida)
