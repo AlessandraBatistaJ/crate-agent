@@ -5,7 +5,7 @@
 Organizador de bibliotecas de música, feito em C# / .NET 8.
 O projeto nasceu de um problema real: uma pasta de downloads do Bandcamp e de outras fontes, cheia de arquivos sem tags, com nomes sujos e códigos de selo misturados com o título.
 
-> 🚧 **Em construção.** Organização, revisão, duplicatas, curador de sets e um detector de BPM estão prontos e testados. O detector **ainda erra em parte das faixas** (veja abaixo), e um experimento com IA local (Ollama) existe, mas só **sugere**. O tom (Camelot) ainda vem de um arquivo CSV.
+> 🚧 **Em construção.** Organização, revisão, duplicatas, curador de sets e um detector de BPM estão prontos e testados. O detector **erra em parte das faixas com valores fora do padrão da biblioteca** (veja abaixo), e um experimento com IA local (Ollama) existe, mas só **sugere**. O tom (Camelot) ainda vem de um CSV.
 
 ![Testes passando](docs/images/testes.png)
 
@@ -109,19 +109,22 @@ O BPM pode ser detectado por código: um filtro deixa só os graves (onde o bumb
 |---|---|---|---|
 | 1 | Site de análise | 10 (137–146 BPM) | 9/10 |
 | 2 | Rekordbox | 10 (128–145 BPM), pasta que o código nunca tinha visto | 10/10 |
+| 3 | Rekordbox | 10 sorteadas entre 31 faixas de aparência normal | 10/10 |
 
-**Em escala (35 faixas, sem referência):** 31 saíram entre 131 e 149 BPM e 4 fora dessa faixa. As 4 foram conferidas no Rekordbox, e **3 estavam erradas**:
+O critério de aprovação (9 de 10 para considerar o erro raro) foi definido **antes** da medição 3. Com 0 erros em 10 faixas, a taxa real de erro nesse grupo ainda poderia chegar a cerca de 26%.
 
-| Faixa | Detector | Rekordbox |
-|---|---|---|
-| Cirkle - Silent Rage | 92,7 | 139 |
-| Bailey Ibbs JKS - Rituals | 96,8 | 145 |
-| Side To Side | 162,2 | 153 |
-| GIO - I Wanna Dance | 151,9 | 152 (certa) |
+**Faixas que fugiam do padrão da biblioteca (4 conferidas no Rekordbox):** 3 estavam erradas.
 
-Nas duas primeiras, o detector achou exatamente **2/3 do andamento real** (92,7 × 1,5 ≈ 139; 96,8 × 1,5 ≈ 145). Na terceira, a causa é desconhecida.
+| Faixa | Detector | Rekordbox | Andamento certo entre os 5 candidatos |
+|---|---|---|---|
+| Cirkle - Silent Rage | 92,7 | 139 | 2º, com 88% da pontuação do vencedor |
+| Bailey Ibbs JKS - Rituals | 96,8 | 145 | 2º, com 89% |
+| Side To Side | 162,2 | 153 | 2º, com 93% |
+| GIO - I Wanna Dance | 151,9 | 152 (certa) | — |
 
-⚠️ **Ressalvas:** as 4 foram escolhidas por parecerem estranhas, então isso **não é uma taxa de erro**; as outras 31 não foram conferidas. O que se sabe é que **ao menos 3 das 35 (cerca de 9%) estão erradas**. As faixas testadas são todas de música eletrônica com bumbo marcado, e as referências são outras ferramentas de detecção. O algoritmo ainda não foi corrigido: o próximo passo é diagnosticar (opção 8) e validar em faixas independentes antes de mudar qualquer coisa.
+Nos dois primeiros erros, o detector achou **2/3 do andamento real** (92,7 × 1,5 ≈ 139; 96,8 × 1,5 ≈ 145). No terceiro, a causa é desconhecida. Nos três, o andamento certo estava entre os candidatos, a uma margem curta do vencedor.
+
+⚠️ **Ressalvas:** as medições 1 e 2 e as 4 faixas estranhas não são amostras aleatórias; 21 das 31 faixas de aparência normal nunca foram conferidas; todas as faixas são de música eletrônica com bumbo marcado, entre 128 e 152 BPM, e as referências são outras ferramentas de detecção. **Faixas lentas e outros gêneros não foram testados.** O algoritmo não foi alterado depois de nenhuma dessas medições.
 
 ## Limitações conhecidas
 
@@ -129,7 +132,7 @@ Nas duas primeiras, o detector achou exatamente **2/3 do andamento real** (92,7 
 - Duplicatas só são detectadas quando os arquivos são **idênticos byte a byte**. A mesma música em dois formatos ou bitrates não é reconhecida.
 - O `Program.cs` (a interface de console) não tem testes automatizados. Um bug real passou despercebido por isso: um trecho foi perdido ao colar código e as duplicatas deixaram de ser tratadas, e só uma execução manual mostrou.
 - A leitura de MP3 (`Mp3Decoder`) também não tem teste automatizado, e a detecção de BPM só funciona com MP3.
-- **O BPM detectado pode estar errado sem nenhum aviso** (veja acima), e o curador o usa como se estivesse certo. Os valores errados conhecidos foram corrigidos à mão no CSV.
+- **O BPM detectado pode estar errado sem nenhum aviso.** Entre as faixas com valores fora do agrupamento da biblioteca (abaixo de 100 ou acima de 150), 3 de 4 conferidas estavam erradas. Os valores errados conhecidos foram corrigidos à mão no CSV.
 - Os CSVs de BPM são indexados pelo **nome do arquivo**. Dois arquivos com o mesmo nome em pastas diferentes colidem.
 - O **tom (Camelot) ainda vem de um CSV** preenchido à mão. Sem ele, todo set mostra "tom desconhecido".
 - As decisões da revisão manual **não são salvas** entre execuções. Persistência com SQLite está no roadmap.
@@ -171,8 +174,9 @@ dotnet run --project CrateAgent.Cli
 - [x] Importação de BPM e tom por CSV
 - [x] Curador de sets por BPM e tom (versão inicial)
 - [x] Detector de BPM por código, com salvamento em CSV
-- [x] Duas medições do detector com referência externa (9/10 e 10/10)
-- [ ] Investigar os erros do detector em escala (diagnóstico e validação em faixas independentes)
+- [x] Três medições do detector com referência externa (9/10, 10/10 e 10/10)
+- [x] Diagnosticar os erros do detector e validar em 10 faixas independentes (10/10 entre as de aparência normal)
+- [ ] Sinalizar BPM ambíguo (segundo candidato próximo do vencedor) em vez de confiar no vencedor
 - [ ] Medição com faixas lentas (abaixo de 90 BPM) e de outros gêneros
 - [ ] Set com destino: um arco de BPM até o valor final pedido
 - [ ] Detecção de tom
