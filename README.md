@@ -7,6 +7,12 @@ O projeto nasceu de um problema real: uma pasta de downloads do Bandcamp e de ou
 
 > 🚧 **Em construção.** Organização, revisão, duplicatas, curador de sets e um detector de BPM estão prontos e testados. O detector **erra em parte das faixas com valores fora do padrão da biblioteca** (veja abaixo), e um experimento com IA local (Ollama) existe, mas só **sugere**. O tom (Camelot) ainda vem de um CSV.
 
+## Download (Windows)
+
+A primeira versão executável está em **[Releases](https://github.com/AlessandraBatistaJ/crate-agent/releases)**: baixe o `.zip`, extraia e abra o `Iniciar_CrateAgent.bat`. Não precisa instalar o .NET.
+
+> ⚠️ O executável **não é assinado digitalmente**, então o Windows pode mostrar um aviso na primeira execução ("Mais informações" → "Executar assim mesmo"). Teste sempre em uma **cópia** da sua pasta de músicas.
+
 ![Testes passando](docs/images/testes.png)
 
 ## O que já funciona
@@ -184,8 +190,7 @@ dotnet run --project CrateAgent.Cli
 - [ ] Set por duração em minutos
 - [ ] Persistência com SQLite
 - [ ] Pedido de set em linguagem natural (IA interpreta, código monta e valida)
-- [ ] Limpeza opcional de duplicatas (com conferência e envio à Lixeira)
-- [ ] Executável publicado em Releases
+- [x] Executável publicado em Releases (v0.1.0, pré-lançamento)
 
 ## Licença
 
