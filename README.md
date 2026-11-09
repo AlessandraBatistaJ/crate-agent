@@ -9,8 +9,7 @@ O projeto nasceu de um problema real: uma pasta de downloads do Bandcamp e de ou
 
 ## Download (Windows)
 
-A primeira versão executável está em **[Releases](https://github.com/AlessandraBatistaJ/crate-agent/releases)**: baixe o `.zip`, extraia e abra o `Iniciar_CrateAgent.bat`. Não precisa instalar o .NET.
-
+A primeira versão executável está em **[Releases](https://github.com/AlessandraBatistaJ/crate-agent/releases)**: baixe o `.zip`, extraia e abra o `Iniciar_CrateAgent.bat`. O executável já inclui o .NET, mas foi **testado até agora só em um computador que já tinha o .NET instalado**.
 > ⚠️ O executável **não é assinado digitalmente**, então o Windows pode mostrar um aviso na primeira execução ("Mais informações" → "Executar assim mesmo"). Teste sempre em uma **cópia** da sua pasta de músicas.
 
 ![Testes passando](docs/images/testes.png)
@@ -189,7 +188,9 @@ dotnet run --project CrateAgent.Cli
 - [ ] Indexar os CSVs pelo caminho relativo, e não pelo nome do arquivo
 - [ ] Set por duração em minutos
 - [ ] Persistência com SQLite
+- [ ] Persistência com SQLite
 - [ ] Pedido de set em linguagem natural (IA interpreta, código monta e valida)
+- [ ] Limpeza opcional de duplicatas (com conferência e envio à Lixeira)
 - [x] Executável publicado em Releases (v0.1.0, pré-lançamento)
 
 ## Licença
