@@ -41,6 +41,41 @@ public class BpmDetectorTests
         return samples;
     }
 
+    // só bumbo, em posições dadas (em tempos) dentro de cada compasso, mais um pouco de ruído
+    private static float[] PatternTrack(double bpm, double[] kicksInBar, double barBeats = 4, int seconds = 40, int seed = 1)
+    {
+        var rng = new Random(seed);
+        var samples = new float[SampleRate * seconds];
+        var beat = 60.0 / bpm;
+        var kickLength = (int)(0.12 * SampleRate);
+        var finished = false;
+
+        for (var bar = 0; !finished; bar++)
+        {
+            foreach (var position in kicksInBar)
+            {
+                var start = (int)Math.Round((bar * barBeats + position) * beat * SampleRate);
+
+                if (start + kickLength >= samples.Length)
+                {
+                    finished = true;
+                    break;
+                }
+
+                for (var i = 0; i < kickLength; i++)
+                {
+                    var t = (double)i / SampleRate;
+                    samples[start + i] += (float)(Math.Sin(2 * Math.PI * (55 + 90 * Math.Exp(-t * 40)) * t) * Math.Exp(-t * 28));
+                }
+            }
+        }
+
+        for (var i = 0; i < samples.Length; i++)
+            samples[i] += (float)((rng.NextDouble() * 2 - 1) * 0.08);
+
+        return samples;
+    }
+
     [Theory]
     [InlineData(120)]
     [InlineData(128)]
@@ -119,5 +154,49 @@ public class BpmDetectorTests
     public void TopCandidates_SemSinal_RetornaVazio()
     {
         Assert.Empty(BpmDetector.TopCandidates(new float[SampleRate * 40], SampleRate));
+    }
+
+    [Fact]
+    public void Analyze_SemSinal_RetornaNull()
+    {
+        Assert.Null(BpmDetector.Analyze(new float[SampleRate * 40], SampleRate));
+    }
+
+    [Fact]
+    public void Analyze_VencedorEIgualAoDetect()
+    {
+        var faixa = ClickTrack(128);
+
+        var analise = BpmDetector.Analyze(faixa, SampleRate);
+
+        Assert.NotNull(analise);
+        Assert.Equal(BpmDetector.Detect(faixa, SampleRate)!.Value, analise!.Bpm);
+    }
+
+    [Fact]
+    public void Analyze_QuatroNoChao_TemVencedorClaro()
+    {
+        var analise = BpmDetector.Analyze(PatternTrack(139, new[] { 0.0, 1.0, 2.0, 3.0 }), SampleRate);
+
+        Assert.NotNull(analise);
+        Assert.InRange(analise!.Bpm, 138.0, 140.0);
+        Assert.NotNull(analise.AlternativeBpm);
+        Assert.True(analise.AlternativeRatio < 0.7);
+    }
+
+    [Fact]
+    public void Analyze_PadraoSincopado_TemAndamentoAmbiguo()
+    {
+        // bumbo nas posições 0 e 2,5 de cada compasso de 4 tempos (estilo 2-step)
+        var analise = BpmDetector.Analyze(PatternTrack(139, new[] { 0.0, 2.5 }), SampleRate);
+
+        Assert.NotNull(analise);
+        Assert.NotNull(analise!.AlternativeBpm);
+        Assert.True(analise.AlternativeRatio > 0.9);
+
+        var par = new[] { analise.Bpm, analise.AlternativeBpm!.Value };
+
+        Assert.Contains(par, b => Math.Abs(b - 139) <= 1.5);
+        Assert.Contains(par, b => Math.Abs(b - 104.3) <= 1.5);
     }
 }

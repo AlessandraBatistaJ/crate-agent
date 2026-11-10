@@ -4,13 +4,15 @@ public enum BpmVerdict { Ok, Double, Half, Other }
 
 public record BpmCandidate(double Bpm, double Score);
 
+public record BpmAnalysis(double Bpm, double? AlternativeBpm, double AlternativeRatio);
+
 public static class BpmDetector
 {
-    private const double StartSeconds = 30;   // pula a introdução, se a faixa for longa
+    private const double StartSeconds = 30;   
     private const double TailSeconds = 30;
     private const double MaxSeconds = 90;
-    private const double CutoffHz = 150;      // só os graves (bumbo)
-    private const int MinFrames = 500;        // menos de ~5 s não dá para medir
+    private const double CutoffHz = 150;      
+    private const int MinFrames = 500;        
     private const double Step = 0.1;
     private const double MinPeakSeparation = 3.0;
 
@@ -32,7 +34,20 @@ public static class BpmDetector
         return Math.Round(curve[best].Bpm, 1);
     }
 
-    // os melhores picos da curva de pontuação, separados por pelo menos 3 BPM
+    public static BpmAnalysis? Analyze(float[] samples, int sampleRate, double minBpm = 90, double maxBpm = 180)
+    {
+        var top = TopCandidates(samples, sampleRate, 2, minBpm, maxBpm);
+
+        if (top.Count == 0)
+            return null;
+
+        if (top.Count == 1 || top[0].Score <= 0)
+            return new BpmAnalysis(top[0].Bpm, null, 0);
+
+        var ratio = Math.Clamp(top[1].Score / top[0].Score, 0, 1);
+        return new BpmAnalysis(top[0].Bpm, top[1].Bpm, ratio);
+    }
+
     public static IReadOnlyList<BpmCandidate> TopCandidates(
         float[] samples, int sampleRate, int count = 5, double minBpm = 90, double maxBpm = 180)
     {
@@ -97,7 +112,6 @@ public static class BpmDetector
 
         var fps = (double)sampleRate / hop;
 
-        // 1. graves -> energia por quadro (cerca de 100 quadros por segundo)
         var alpha = 1.0 - Math.Exp(-2.0 * Math.PI * CutoffHz / sampleRate);
         var rms = new double[frames];
         double low = 0;
@@ -116,7 +130,6 @@ public static class BpmDetector
             rms[f] = Math.Sqrt(sum / hop);
         }
 
-        // 2. início das batidas: só os aumentos de energia
         var onset = new double[frames];
         double mean = 0;
 
@@ -139,7 +152,6 @@ public static class BpmDetector
         if (energy <= 1e-12)
             return null;
 
-        // 3. autocorrelação com defasagem fracionária (interpolação linear)
         double Correlation(double lag)
         {
             var whole = (int)Math.Floor(lag);
@@ -156,7 +168,6 @@ public static class BpmDetector
             return sum / energy;
         }
 
-        // 4. para cada BPM candidato, soma a correlação em 1, 2, 3 e 4 tempos
         var steps = (int)Math.Round((maxBpm - minBpm) / Step);
 
         if (steps <= 0)

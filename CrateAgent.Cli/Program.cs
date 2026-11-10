@@ -190,6 +190,7 @@ if (opcao == "6")
     Console.WriteLine($"\nDetectando o BPM de {alvo.Count} faixa(s)...\n");
 
     var contagem = new Dictionary<BpmVerdict, int>();
+    var medidas = new List<(bool Certa, double Razao)>();
     var falhas = 0;
 
     foreach (var faixaAlvo in alvo)
@@ -207,10 +208,10 @@ if (opcao == "6")
         {
             var cronometro = System.Diagnostics.Stopwatch.StartNew();
             var (amostras, taxa) = Mp3Decoder.ReadMono(faixaAlvo.FilePath);
-            var detectado = BpmDetector.Detect(amostras, taxa);
+            var analise = BpmDetector.Analyze(amostras, taxa);
             cronometro.Stop();
 
-            if (detectado is null)
+            if (analise is null)
             {
                 Console.WriteLine($"SEM RESULTADO   {nome}");
                 falhas++;
@@ -218,11 +219,16 @@ if (opcao == "6")
             }
 
             var esperado = faixaAlvo.Bpm!.Value;
-            var valor = detectado.Value;
+            var valor = analise.Bpm;
             var veredito = BpmDetector.Classify(valor, esperado);
             contagem[veredito] = contagem.GetValueOrDefault(veredito) + 1;
+            medidas.Add((veredito == BpmVerdict.Ok, analise.AlternativeRatio));
 
-            Console.WriteLine($"{veredito,-6}  esperado {esperado,3}  |  detectado {valor,6:F1}  |  {cronometro.Elapsed.TotalSeconds:F1}s  |  {nome}");
+            var segundo = analise.AlternativeBpm is null
+                ? "-"
+                : $"{analise.AlternativeBpm.Value:F1} ({analise.AlternativeRatio:P0})";
+
+            Console.WriteLine($"{veredito,-6}  esperado {esperado,3}  |  detectado {valor,6:F1}  |  2º {segundo,-14}  |  {cronometro.Elapsed.TotalSeconds:F1}s  |  {nome}");
         }
         catch (Exception ex)
         {
@@ -231,9 +237,28 @@ if (opcao == "6")
         }
     }
 
+    var certas = medidas.Where(m => m.Certa).ToList();
+    var erradas = medidas.Where(m => !m.Certa).ToList();
+
     Console.WriteLine($"\nDentro de ±1 BPM: {contagem.GetValueOrDefault(BpmVerdict.Ok)}/{alvo.Count}");
     Console.WriteLine($"Dobro: {contagem.GetValueOrDefault(BpmVerdict.Double)} | Metade: {contagem.GetValueOrDefault(BpmVerdict.Half)} | " +
                       $"Outro: {contagem.GetValueOrDefault(BpmVerdict.Other)} | Sem resultado ou falha: {falhas}");
+
+    Console.WriteLine("\nPontuação do 2º colocado (quanto mais perto de 100%, mais ambíguo):");
+    Console.WriteLine($"  certas ({certas.Count}):   " +
+                      string.Join(", ", certas.Select(m => m.Razao).OrderByDescending(r => r).Select(r => r.ToString("P0"))));
+    Console.WriteLine($"  erradas ({erradas.Count}): " +
+                      string.Join(", ", erradas.Select(m => m.Razao).OrderByDescending(r => r).Select(r => r.ToString("P0"))));
+
+    Console.WriteLine();
+
+    foreach (var limite in new[] { 0.80, 0.85, 0.90 })
+    {
+        var alarmes = certas.Count(m => m.Razao >= limite);
+        var pegos = erradas.Count(m => m.Razao >= limite);
+        Console.WriteLine($"Limite {limite:P0}: alarmes falsos {alarmes}/{certas.Count} | erros sinalizados {pegos}/{erradas.Count}");
+    }
+
     return;
 }
 
