@@ -90,4 +90,20 @@ public class BpmCsvWriterTests : IDisposable
 
         Assert.Equal(140, track.Bpm);
     }
+
+    [Fact]
+    public void Format_ComAlternativa_MarcaComoAmbiguo()
+    {
+        Assert.Equal("a.mp3;92.7;;ambiguo (2o 138.8)", BpmCsvWriter.Format("a.mp3", 92.7, 138.8));
+    }
+
+    [Fact]
+    public void Append_LinhaAmbigua_EscritaComAObservacao()
+    {
+        BpmCsvWriter.Append(Caminho, "a.mp3", 92.7, 138.8);
+
+        var linhas = File.ReadAllLines(Caminho);
+
+        Assert.Equal("a.mp3;92.7;;ambiguo (2o 138.8)", linhas[1]);
+    }
 }

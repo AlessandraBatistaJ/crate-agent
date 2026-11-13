@@ -7,18 +7,22 @@ public static class BpmCsvWriter
     private const string Header = "arquivo;bpm;tom;obs";
 
     // null quando o nome não cabe no formato (ponto e vírgula ou quebra de linha quebrariam o CSV)
-    public static string? Format(string fileName, double bpm)
+    public static string? Format(string fileName, double bpm, double? alternativeBpm = null)
     {
         if (string.IsNullOrWhiteSpace(fileName) ||
             fileName.Contains(';') || fileName.Contains('\n') || fileName.Contains('\r'))
             return null;
 
-        return FormattableString.Invariant($"{fileName};{bpm:F1};;detectado");
+        var note = alternativeBpm is null
+            ? "detectado"
+            : FormattableString.Invariant($"ambiguo (2o {alternativeBpm.Value:F1})");
+
+        return FormattableString.Invariant($"{fileName};{bpm:F1};;{note}");
     }
 
-    public static bool Append(string csvPath, string fileName, double bpm)
+    public static bool Append(string csvPath, string fileName, double bpm, double? alternativeBpm = null)
     {
-        var row = Format(fileName, bpm);
+        var row = Format(fileName, bpm, alternativeBpm);
 
         if (row is null)
             return false;

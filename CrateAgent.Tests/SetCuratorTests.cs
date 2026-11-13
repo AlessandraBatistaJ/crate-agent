@@ -90,4 +90,16 @@ public class SetCuratorTests
 
         Assert.Empty(set);
     }
+
+    [Fact]
+    public void Build_IgnoraFaixasComBpmAmbiguo()
+    {
+        var confiavel = T("confiavel.mp3", 140, "8A");
+        var ambigua = T("ambigua.mp3", 141, "8A");
+        ambigua.BpmAmbiguous = true;
+
+        var set = SetCurator.Build(new[] { confiavel, ambigua }, new SetRequest(138, 146, 10));
+
+        Assert.Equal(confiavel, Assert.Single(set));
+    }
 }

@@ -98,4 +98,18 @@ public class DuplicateDetectorTests : IDisposable
         Assert.Equal(128, original.Bpm);
         Assert.Equal(145, copia.Bpm);
     }
+
+    [Fact]
+    public void ShareMetadata_CopiaTambemOEstadoAmbiguo()
+    {
+        var original = Criar("Faixa.mp3", "x");
+        var copia = Criar("Faixa (1).mp3", "x");
+        copia.Bpm = 93;
+        copia.BpmAmbiguous = true;
+
+        DuplicateDetector.ShareMetadata(DuplicateDetector.Find(new[] { original, copia }));
+
+        Assert.Equal(93, original.Bpm);
+        Assert.True(original.BpmAmbiguous);
+    }
 }

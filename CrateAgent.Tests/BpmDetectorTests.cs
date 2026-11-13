@@ -199,4 +199,31 @@ public class BpmDetectorTests
         Assert.Contains(par, b => Math.Abs(b - 139) <= 1.5);
         Assert.Contains(par, b => Math.Abs(b - 104.3) <= 1.5);
     }
+
+    [Theory]
+    [InlineData(0.88, true)]
+    [InlineData(0.85, true)]
+    [InlineData(0.84, false)]
+    public void IsAmbiguous_UsaOLimiteDe85Porcento(double razao, bool esperado)
+    {
+        var analise = new BpmAnalysis(139, 92.7, razao);
+
+        Assert.Equal(esperado, BpmDetector.IsAmbiguous(analise));
+    }
+
+    [Fact]
+    public void IsAmbiguous_SemAlternativa_NaoEAmbiguo()
+    {
+        Assert.False(BpmDetector.IsAmbiguous(new BpmAnalysis(139, null, 0.99)));
+    }
+
+    [Fact]
+    public void IsAmbiguous_PadraoSincopadoSim_QuatroNoChaoNao()
+    {
+        var sincopado = BpmDetector.Analyze(PatternTrack(139, new[] { 0.0, 2.5 }), SampleRate)!;
+        var reto = BpmDetector.Analyze(PatternTrack(139, new[] { 0.0, 1.0, 2.0, 3.0 }), SampleRate)!;
+
+        Assert.True(BpmDetector.IsAmbiguous(sincopado));
+        Assert.False(BpmDetector.IsAmbiguous(reto));
+    }
 }
