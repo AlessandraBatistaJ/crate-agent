@@ -26,7 +26,6 @@ public static class BpmCsvImporter
             if (track.Bpm is null && entry.Bpm is not null)
             {
                 track.Bpm = entry.Bpm;
-                track.BpmAmbiguous = entry.Ambiguous;
                 changed = true;
             }
 
@@ -61,17 +60,9 @@ public static class BpmCsvImporter
         return trimmed is not null && Camelot.IsMatch(trimmed) ? trimmed.ToUpperInvariant() : null;
     }
 
-    private static bool IsAmbiguousNote(string note)
+    private static Dictionary<string, (int? Bpm, string? Key)> Load(string csvPath)
     {
-        var trimmed = note.Trim();
-
-        return trimmed.StartsWith("ambiguo", StringComparison.OrdinalIgnoreCase) ||
-               trimmed.StartsWith("ambíguo", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static Dictionary<string, (int? Bpm, string? Key, bool Ambiguous)> Load(string csvPath)
-    {
-        var result = new Dictionary<string, (int? Bpm, string? Key, bool Ambiguous)>();
+        var result = new Dictionary<string, (int? Bpm, string? Key)>();
 
         foreach (var line in File.ReadLines(csvPath).Skip(1))
         {
@@ -80,9 +71,7 @@ public static class BpmCsvImporter
                 continue;
 
             var key = parts.Length > 2 ? ParseKey(parts[2]) : null;
-            var ambiguous = parts.Length > 3 && IsAmbiguousNote(parts[3]);
-
-            result.TryAdd(Norm(parts[0]), (ParseBpm(parts[1]), key, ambiguous));
+            result.TryAdd(Norm(parts[0]), (ParseBpm(parts[1]), key));
         }
 
         return result;

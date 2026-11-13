@@ -44,16 +44,12 @@ public static class DuplicateDetector
         {
             var members = group.Duplicates.Prepend(group.Keep).ToList();
 
-            var source = members.FirstOrDefault(t => t.Bpm is not null);
+            var bpm = members.Select(t => t.Bpm).FirstOrDefault(b => b is not null);
             var key = members.Select(t => t.Key).FirstOrDefault(k => !string.IsNullOrWhiteSpace(k));
 
             foreach (var member in members)
             {
-                if (member.Bpm is null && source is not null)
-                {
-                    member.Bpm = source.Bpm;
-                    member.BpmAmbiguous = source.BpmAmbiguous;
-                }
+                member.Bpm ??= bpm;
 
                 if (string.IsNullOrWhiteSpace(member.Key))
                     member.Key = key;

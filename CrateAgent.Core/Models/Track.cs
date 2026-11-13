@@ -16,7 +16,5 @@ public class Track
     public bool NeedsReview =>
         (ReviewReasons & (ReviewReason.MissingArtist | ReviewReason.SuspiciousTitle | ReviewReason.PrefixRemoved))
         != ReviewReason.None;
-    // o BPM veio de uma detecção ambígua (2º candidato muito perto do vencedor) e ainda não foi confirmado
-    public bool BpmAmbiguous { get; set; }
 
 }

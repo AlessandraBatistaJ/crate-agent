@@ -48,11 +48,6 @@ public static class BpmDetector
         return new BpmAnalysis(top[0].Bpm, top[1].Bpm, ratio);
     }
 
-    // 2º candidato com pelo menos 85% da pontuação do vencedor: o andamento é ambíguo
-    public const double AmbiguityThreshold = 0.85;
-
-    public static bool IsAmbiguous(BpmAnalysis analysis, double threshold = AmbiguityThreshold) =>
-        analysis.AlternativeBpm is not null && analysis.AlternativeRatio >= threshold;
     public static IReadOnlyList<BpmCandidate> TopCandidates(
         float[] samples, int sampleRate, int count = 5, double minBpm = 90, double maxBpm = 180)
     {

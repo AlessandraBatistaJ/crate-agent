@@ -11,7 +11,7 @@ public static class SetCurator
     public static List<Track> Build(IEnumerable<Track> tracks, SetRequest request)
     {
         var pool = tracks
-            .Where(t => t.Bpm is not null && !t.BpmAmbiguous && t.Bpm >= request.StartBpm && t.Bpm <= request.EndBpm)
+            .Where(t => t.Bpm is not null && t.Bpm >= request.StartBpm && t.Bpm <= request.EndBpm)
             .OrderBy(t => t.Bpm)
             .ThenBy(t => t.FilePath, StringComparer.OrdinalIgnoreCase)
             .ToList();

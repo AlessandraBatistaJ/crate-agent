@@ -116,12 +116,7 @@ if (opcao == "5")
         .ToHashSet();
     var candidatas = tracks.Where(x => !copias.Contains(x.FilePath)).ToList();
 
-    Console.WriteLine($"\n{candidatas.Count(x => x.Bpm is not null && !x.BpmAmbiguous)} faixa(s) com BPM confiável disponíveis (de {candidatas.Count}).");
-
-    var ambiguas = candidatas.Count(x => x.BpmAmbiguous);
-
-    if (ambiguas > 0)
-        Console.WriteLine($"{ambiguas} faixa(s) com BPM ambíguo ficaram de fora até você confirmar no Rekordbox.");
+    Console.WriteLine($"\n{candidatas.Count(x => x.Bpm is not null)} faixa(s) com BPM disponíveis (de {candidatas.Count}).");
 
     Console.Write("BPM inicial: ");
     var okInicio = int.TryParse(Console.ReadLine(), out var bpmInicio);
@@ -312,7 +307,6 @@ if (opcao == "7")
     }
 
     var salvas = 0;
-    var ambiguasDet = 0;
     var falhasBpm = 0;
     var nomesInvalidos = 0;
     var indice = 0;
@@ -326,19 +320,18 @@ if (opcao == "7")
         try
         {
             var (amostrasDet, taxaDet) = Mp3Decoder.ReadMono(faixaDet.FilePath);
-            var analiseDet = BpmDetector.Analyze(amostrasDet, taxaDet);
+            var bpmDet = BpmDetector.Detect(amostrasDet, taxaDet);
 
-            if (analiseDet is null)
+            if (bpmDet is null)
             {
                 Console.WriteLine($"{posicao} SEM RESULTADO  {nomeDet}");
                 falhasBpm++;
                 continue;
             }
 
-            var ambiguoDet = BpmDetector.IsAmbiguous(analiseDet);
-            var valorDet = analiseDet.Bpm;
+            var valorDet = bpmDet.Value;
 
-            if (!BpmCsvWriter.Append(csvSaida, nomeDet, valorDet, ambiguoDet ? analiseDet.AlternativeBpm : null))
+            if (!BpmCsvWriter.Append(csvSaida, nomeDet, valorDet))
             {
                 Console.WriteLine($"{posicao} NOME NÃO SUPORTADO NO CSV  {nomeDet}");
                 nomesInvalidos++;
@@ -346,16 +339,7 @@ if (opcao == "7")
             }
 
             salvas++;
-
-            if (ambiguoDet)
-            {
-                ambiguasDet++;
-                Console.WriteLine($"{posicao} {valorDet,6:F1} BPM  AMBÍGUO (2º: {analiseDet.AlternativeBpm:F1}, {analiseDet.AlternativeRatio:P0})  {nomeDet}");
-            }
-            else
-            {
-                Console.WriteLine($"{posicao} {valorDet,6:F1} BPM  {nomeDet}");
-            }
+            Console.WriteLine($"{posicao} {valorDet,6:F1} BPM  {nomeDet}");
         }
         catch (Exception ex)
         {
@@ -365,7 +349,6 @@ if (opcao == "7")
     }
 
     Console.WriteLine($"\n{salvas} BPM(s) salvos em {csvSaida}");
-    Console.WriteLine($"Ambíguos (ficam de fora do curador até você confirmar): {ambiguasDet}");
     Console.WriteLine($"Sem resultado ou falha: {falhasBpm} | Nome não suportado: {nomesInvalidos}");
     Console.WriteLine("Para usar no curador, informe esse CSV na opção 5.");
     return;

@@ -74,40 +74,4 @@ public class BpmCsvImporterTests : IDisposable
         Assert.Equal(0, BpmCsvImporter.Apply(new[] { track }, csv));
         Assert.Null(track.Bpm);
     }
-
-    [Fact]
-    public void Apply_ObservacaoAmbigua_MarcaATrack()
-    {
-        var csv = Csv("arquivo;bpm;tom;obs\nCirkle.mp3;92.7;;ambiguo (2o 138.8)\n");
-        var track = new Track { FilePath = Path.Combine("x", "Cirkle.mp3") };
-
-        BpmCsvImporter.Apply(new[] { track }, csv);
-
-        Assert.Equal(93, track.Bpm);
-        Assert.True(track.BpmAmbiguous);
-    }
-
-    [Fact]
-    public void Apply_ValorConfirmado_NaoFicaAmbiguo()
-    {
-        var csv = Csv("arquivo;bpm;tom;obs\nCirkle.mp3;139;;rekordbox\n");
-        var track = new Track { FilePath = Path.Combine("x", "Cirkle.mp3") };
-
-        BpmCsvImporter.Apply(new[] { track }, csv);
-
-        Assert.Equal(139, track.Bpm);
-        Assert.False(track.BpmAmbiguous);
-    }
-
-    [Fact]
-    public void Apply_BpmDaTag_PrevaleceENaoFicaAmbiguo()
-    {
-        var csv = Csv("arquivo;bpm;tom;obs\nCirkle.mp3;93;;ambiguo (2o 138.8)\n");
-        var track = new Track { FilePath = Path.Combine("x", "Cirkle.mp3"), Bpm = 139 };
-
-        BpmCsvImporter.Apply(new[] { track }, csv);
-
-        Assert.Equal(139, track.Bpm);
-        Assert.False(track.BpmAmbiguous);
-    }
 }
