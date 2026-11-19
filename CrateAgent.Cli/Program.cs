@@ -208,7 +208,7 @@ if (opcao == "6")
         {
             var cronometro = System.Diagnostics.Stopwatch.StartNew();
             var (amostras, taxa) = Mp3Decoder.ReadMono(faixaAlvo.FilePath);
-            var analise = BpmDetector.Analyze(amostras, taxa);
+            var analise = BpmDetector.Analyze(amostras, taxa, BpmWindow.Min, BpmWindow.Max);
             cronometro.Stop();
 
             if (analise is null)
@@ -320,7 +320,7 @@ if (opcao == "7")
         try
         {
             var (amostrasDet, taxaDet) = Mp3Decoder.ReadMono(faixaDet.FilePath);
-            var bpmDet = BpmDetector.Detect(amostrasDet, taxaDet);
+            var bpmDet = BpmDetector.Detect(amostrasDet, taxaDet, BpmWindow.Min, BpmWindow.Max);
 
             if (bpmDet is null)
             {

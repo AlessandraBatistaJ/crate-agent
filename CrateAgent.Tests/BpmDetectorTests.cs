@@ -199,4 +199,37 @@ public class BpmDetectorTests
         Assert.Contains(par, b => Math.Abs(b - 139) <= 1.5);
         Assert.Contains(par, b => Math.Abs(b - 104.3) <= 1.5);
     }
+
+    [Fact]
+    public void Detect_JanelaAmpla_PodeFicarComAndamentoLentoFantasma()
+    {
+        // 2-step a 139 BPM: sem restringir a janela, um andamento mais lento (3/4) vence.
+        // Este teste documenta o limite do detector; se ele for corrigido, atualize o teste.
+        var detectado = BpmDetector.Detect(PatternTrack(139, new[] { 0.0, 2.5 }), SampleRate);
+
+        Assert.NotNull(detectado);
+        Assert.InRange(detectado!.Value, 103.0, 105.5);
+    }
+
+    [Fact]
+    public void Detect_JanelaDaBiblioteca_EscolheOAndamentoReal()
+    {
+        var detectado = BpmDetector.Detect(
+            PatternTrack(139, new[] { 0.0, 2.5 }), SampleRate, BpmWindow.Min, BpmWindow.Max);
+
+        Assert.NotNull(detectado);
+        Assert.InRange(detectado!.Value, 138.0, 140.0);
+    }
+
+    [Fact]
+    public void Detect_JanelaDaBiblioteca_MantemOsAndamentosDentroDela()
+    {
+        foreach (var bpm in new[] { 120.0, 128.0, 140.0, 146.0 })
+        {
+            var detectado = BpmDetector.Detect(ClickTrack(bpm), SampleRate, BpmWindow.Min, BpmWindow.Max);
+
+            Assert.NotNull(detectado);
+            Assert.InRange(detectado!.Value, bpm - 1.0, bpm + 1.0);
+        }
+    }
 }

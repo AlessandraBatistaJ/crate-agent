@@ -131,6 +131,22 @@ Nos dois primeiros erros, o detector achou **2/3 do andamento real** (92,7 × 1,
 
 ⚠️ **Ressalvas:** as medições 1 e 2 e as 4 faixas estranhas não são amostras aleatórias; 21 das 31 faixas de aparência normal nunca foram conferidas; todas as faixas são de música eletrônica com bumbo marcado, entre 128 e 152 BPM, e as referências são outras ferramentas de detecção. **Faixas lentas e outros gêneros não foram testados.** O algoritmo não foi alterado depois de nenhuma dessas medições.
 
+### Sinalizador de BPM ambíguo (testado e não adotado)
+
+**Hipótese:** se o 2º candidato tem pelo menos 85% da pontuação do vencedor, o BPM é ambíguo e a faixa deve ser conferida.
+**Critérios, definidos antes de rodar:** marcar 25% ou menos das faixas; metade ou mais das marcadas realmente erradas; no máximo 1 erro em 10 faixas não marcadas, sorteadas.
+
+| Critério | Resultado (77 faixas, Rekordbox como referência) |
+|---|---|
+| Faixas marcadas | 6 de 77 (8%) ✅ |
+| Marcadas realmente erradas | 1 de 6 (17%) ❌ |
+| Erros em 10 não marcadas sorteadas | 0 ✅ |
+
+**Não adotado.** Na calibração, nenhuma faixa certa passava de 84% e as erradas ficavam em 88% ou mais; na validação, 5 faixas certas ficaram entre 86% e 98%. O código foi revertido, e o experimento continua no histórico do Git.
+
+**Observação ainda não testada:** em todas as 35 faixas certas com candidatos conhecidos, o 2º colocado era **mais lento** que o vencedor. Em 3 dos 5 erros conhecidos, era **mais rápido**. Foi encontrada olhando os mesmos dados, então só vale depois de um teste em faixas novas.
+
+
 ## Limitações conhecidas
 
 - A regra que trata o texto antes de "Premiere" como canal também remove artistas legítimos nessa posição. Exemplo real: em `SIAH Premiere bmod`, o `SIAH` faz parte do nome. Por isso essas faixas vão para revisão, e a pessoa corrige.
@@ -181,7 +197,8 @@ dotnet run --project CrateAgent.Cli
 - [x] Detector de BPM por código, com salvamento em CSV
 - [x] Três medições do detector com referência externa (9/10, 10/10 e 10/10)
 - [x] Diagnosticar os erros do detector e validar em 10 faixas independentes (10/10 entre as de aparência normal)
-- [ ] Sinalizar BPM ambíguo (segundo candidato próximo do vencedor) em vez de confiar no vencedor
+- [x] Testar o sinalizador de BPM ambíguo (2º candidato ≥ 85%): não adotado, veja abaixo
+- [ ] Testar a hipótese direcional (2º candidato mais rápido que o vencedor) em faixas novas
 - [ ] Medição com faixas lentas (abaixo de 90 BPM) e de outros gêneros
 - [ ] Set com destino: um arco de BPM até o valor final pedido
 - [ ] Detecção de tom
