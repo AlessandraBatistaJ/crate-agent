@@ -5,11 +5,12 @@
 Organizador de bibliotecas de música, feito em C# / .NET 8.
 O projeto nasceu de um problema real: uma pasta de downloads do Bandcamp e de outras fontes, cheia de arquivos sem tags, com nomes sujos e códigos de selo misturados com o título.
 
-> 🚧 **Em construção.** Organização, revisão, duplicatas, curador de sets e um detector de BPM estão prontos e testados. O detector **erra em parte das faixas com valores fora do padrão da biblioteca** (veja abaixo), e um experimento com IA local (Ollama) existe, mas só **sugere**. O tom (Camelot) ainda vem de um CSV.
+> 🚧 **Em construção.** Organização, revisão, duplicatas, curador de sets e um detector de BPM estão prontos e testados. O detector **assume que as faixas ficam entre 110 e 160 BPM** e ainda erra em alguns casos (veja abaixo). Um experimento com IA local (Ollama) existe, mas só **sugere**. O tom (Camelot) ainda vem de um CSV.
 
 ## Download (Windows)
 
 A primeira versão executável está em **[Releases](https://github.com/AlessandraBatistaJ/crate-agent/releases)**: baixe o `.zip`, extraia e abra o `Iniciar_CrateAgent.bat`. O executável já inclui o .NET, mas foi **testado até agora só em um computador que já tinha o .NET instalado**.
+
 > ⚠️ O executável **não é assinado digitalmente**, então o Windows pode mostrar um aviso na primeira execução ("Mais informações" → "Executar assim mesmo"). Teste sempre em uma **cópia** da sua pasta de músicas.
 
 ![Testes passando](docs/images/testes.png)
@@ -26,9 +27,9 @@ A primeira versão executável está em **[Releases](https://github.com/Alessand
 - ✅ **Mover de verdade** com log em JSON e **desfazer** pelo log
 - ✅ **Importação de BPM e tom** (notação Camelot) por CSV, com validação
 - ✅ **Curador de sets** por BPM crescente e compatibilidade na roda Camelot
-- ✅ **Detector de BPM por código**, que salva o resultado em CSV (a origem do número fica na coluna `obs`) e mostra os melhores candidatos de cada faixa para diagnóstico
+- ✅ **Detector de BPM por código** (janela de 110 a 160 BPM), que salva o resultado em CSV (a origem do número fica na coluna `obs`) e mostra os melhores candidatos de cada faixa para diagnóstico
 - ✅ **Avaliador de gabarito**: compara o resultado do programa com nomes escritos à mão
-- ✅ **CI** no GitHub Actions e **137 testes automatizados** com xUnit
+- ✅ **CI** no GitHub Actions e **144 testes automatizados** com xUnit
 
 ## Como funciona
 
@@ -69,7 +70,7 @@ Exemplo real (46 faixas de uma pasta de teste). Depois da revisão manual de 7 f
 - **Prefixo descartado pede conferência.** Quando o programa remove o que vinha antes de "Premiere" (supondo que seja o canal), a faixa vai para revisão.
 - **Dado ruim não vira dado falso.** O importador de BPM só aceita tons de `1A` a `12B`; qualquer outra coisa vira "sem informação".
 - **Valor manual vale mais que valor detectado.** O CSV guarda a origem de cada BPM (`detectado`, `rekordbox`), e valores corrigidos à mão nunca são sobrescritos.
-- **Medir antes de decidir.** Os critérios de aprovação dos experimentos foram definidos antes de rodá-los.
+- **Medir antes de decidir.** Os critérios de aprovação dos experimentos foram definidos antes de rodá-los, e um experimento que falhou foi revertido (veja abaixo).
 
 ## Medindo em vez de achar
 
@@ -106,9 +107,11 @@ Testado com faixas de BPM medido (à mão e por código). **Isso mostra que o c�
 
 ## Detecção de BPM
 
-O BPM pode ser detectado por código: um filtro deixa só os graves (onde o bumbo mora), o programa mede os picos de energia e testa cada BPM de 90 a 180 para ver qual encaixa melhor nos picos. A janela de 90 a 180 é uma suposição: uma faixa de 70 BPM real sai como 140.
+O BPM pode ser detectado por código: um filtro deixa só os graves (onde o bumbo mora), o programa mede os picos de energia e testa cada BPM de uma janela para ver qual encaixa melhor nos picos. A janela original ia de 90 a 180 BPM; hoje é de **110 a 160 BPM** (veja "Janela da biblioteca").
 
-**Medições com referência externa**, sem ajuste do algoritmo entre elas:
+### Primeiras medições (janela de 90 a 180 BPM)
+
+Referências externas (site de análise e Rekordbox), **sem ajuste do algoritmo entre elas**:
 
 | Medição | Referência | Faixas | Dentro de ±1 BPM |
 |---|---|---|---|
@@ -116,20 +119,7 @@ O BPM pode ser detectado por código: um filtro deixa só os graves (onde o bumb
 | 2 | Rekordbox | 10 (128–145 BPM), pasta que o código nunca tinha visto | 10/10 |
 | 3 | Rekordbox | 10 sorteadas entre 31 faixas de aparência normal | 10/10 |
 
-O critério de aprovação (9 de 10 para considerar o erro raro) foi definido **antes** da medição 3. Com 0 erros em 10 faixas, a taxa real de erro nesse grupo ainda poderia chegar a cerca de 26%.
-
-**Faixas que fugiam do padrão da biblioteca (4 conferidas no Rekordbox):** 3 estavam erradas.
-
-| Faixa | Detector | Rekordbox | Andamento certo entre os 5 candidatos |
-|---|---|---|---|
-| Cirkle - Silent Rage | 92,7 | 139 | 2º, com 88% da pontuação do vencedor |
-| Bailey Ibbs JKS - Rituals | 96,8 | 145 | 2º, com 89% |
-| Side To Side | 162,2 | 153 | 2º, com 93% |
-| GIO - I Wanna Dance | 151,9 | 152 (certa) | — |
-
-Nos dois primeiros erros, o detector achou **2/3 do andamento real** (92,7 × 1,5 ≈ 139; 96,8 × 1,5 ≈ 145). No terceiro, a causa é desconhecida. Nos três, o andamento certo estava entre os candidatos, a uma margem curta do vencedor.
-
-⚠️ **Ressalvas:** as medições 1 e 2 e as 4 faixas estranhas não são amostras aleatórias; 21 das 31 faixas de aparência normal nunca foram conferidas; todas as faixas são de música eletrônica com bumbo marcado, entre 128 e 152 BPM, e as referências são outras ferramentas de detecção. **Faixas lentas e outros gêneros não foram testados.** O algoritmo não foi alterado depois de nenhuma dessas medições.
+Rodando o detector nas 111 faixas das duas pastas, 5 saíram com valores fora de 110–160 BPM. Conferidas no Rekordbox, **as 5 estavam erradas** (e 1 faixa dentro da janela também, a `SAN`). Em 3 delas, o detector achou **2/3 do andamento real**, e nas 3 o andamento certo estava entre os candidatos, em 2º lugar.
 
 ### Sinalizador de BPM ambíguo (testado e não adotado)
 
@@ -142,10 +132,31 @@ Nos dois primeiros erros, o detector achou **2/3 do andamento real** (92,7 × 1,
 | Marcadas realmente erradas | 1 de 6 (17%) ❌ |
 | Erros em 10 não marcadas sorteadas | 0 ✅ |
 
-**Não adotado.** Na calibração, nenhuma faixa certa passava de 84% e as erradas ficavam em 88% ou mais; na validação, 5 faixas certas ficaram entre 86% e 98%. O código foi revertido, e o experimento continua no histórico do Git.
+**Não adotado.** O código foi revertido, e o experimento continua no histórico do Git.
 
-**Observação ainda não testada:** em todas as 35 faixas certas com candidatos conhecidos, o 2º colocado era **mais lento** que o vencedor. Em 3 dos 5 erros conhecidos, era **mais rápido**. Foi encontrada olhando os mesmos dados, então só vale depois de um teste em faixas novas.
+### Janela da biblioteca (110 a 160 BPM)
 
+Como as faixas erradas tinham valores fora de 110–160, a janela de busca foi restringida a esse intervalo. Isso é uma **suposição sobre a minha biblioteca** (house, techno e breaks), e não uma descoberta sobre ritmos. A janela só remove candidatos, então qualquer faixa cujo vencedor já estava dentro dela não muda.
+
+As previsões foram escritas antes de rodar e **todas se confirmaram**:
+
+| Faixa | Antes (90–180) | Depois (110–160) | Rekordbox |
+|---|---|---|---|
+| Cirkle - Silent Rage | 92,7 | 138,8 | 139 ✅ |
+| Bailey Ibbs JKS - Rituals | 96,8 | 145,1 | 145 ✅ |
+| Contamination | 95,2 | 142,8 | 142 ✅ |
+| Side To Side | 162,2 | 152,9 | 153 ✅ |
+| The Self (Intro) | 176,4 | 132,6 | 136 ❌ |
+| SAN | 136,4 | 136,4 | 140 ❌ |
+
+Nas 51 faixas conferidas, os acertos passaram de **45 para 49**, sem nenhuma regressão e sem nenhuma mudança além das previstas.
+
+⚠️ **Ressalvas:**
+- A janela foi escolhida olhando as mesmas 5 faixas que ela corrige. **Isso não é prova independente.** A prova é uma pasta nova, com outros estilos, ainda não feita.
+- **Faixas realmente fora de 110–160 BPM** (por exemplo drum and bass) vão sair erradas **sem aviso**.
+- As 51 faixas não são uma amostra aleatória: 10 + 10 + 10 foram sorteadas, e as outras foram conferidas por parecerem estranhas ou por terem sido marcadas.
+- **Duas continuam erradas:** a `SAN` (vizinho próximo a 3,6 BPM) e a `The Self` (os 5 melhores candidatos ficaram entre 95% e 100%, sem pulso claro).
+- Todas as faixas são de música eletrônica com bumbo marcado, e as referências são outras ferramentas de detecção. Faixas lentas e outros gêneros não foram testados.
 
 ## Limitações conhecidas
 
@@ -153,7 +164,8 @@ Nos dois primeiros erros, o detector achou **2/3 do andamento real** (92,7 × 1,
 - Duplicatas só são detectadas quando os arquivos são **idênticos byte a byte**. A mesma música em dois formatos ou bitrates não é reconhecida.
 - O `Program.cs` (a interface de console) não tem testes automatizados. Um bug real passou despercebido por isso: um trecho foi perdido ao colar código e as duplicatas deixaram de ser tratadas, e só uma execução manual mostrou.
 - A leitura de MP3 (`Mp3Decoder`) também não tem teste automatizado, e a detecção de BPM só funciona com MP3.
-- **O BPM detectado pode estar errado sem nenhum aviso.** Entre as faixas com valores fora do agrupamento da biblioteca (abaixo de 100 ou acima de 150), 3 de 4 conferidas estavam erradas. Os valores errados conhecidos foram corrigidos à mão no CSV.
+- **O BPM detectado pode estar errado sem nenhum aviso.** Das 51 faixas conferidas, 2 continuam erradas com a janela atual. Valores errados conhecidos foram corrigidos à mão no CSV.
+- A janela de 110 a 160 BPM é fixa no código (`BpmWindow`) e não foi validada em pasta independente.
 - Os CSVs de BPM são indexados pelo **nome do arquivo**. Dois arquivos com o mesmo nome em pastas diferentes colidem.
 - O **tom (Camelot) ainda vem de um CSV** preenchido à mão. Sem ele, todo set mostra "tom desconhecido".
 - As decisões da revisão manual **não são salvas** entre execuções. Persistência com SQLite está no roadmap.
@@ -172,7 +184,7 @@ CrateAgent.Cli     → interface de console
 CrateAgent.Tests   → testes automatizados
 ```
 
-Principais serviços: `LibraryScanner`, `FileNameParser`, `NameCleaner`, `TrackReviewer`, `ManualReview`, `DuplicateDetector`, `LibraryOrganizer`, `LibraryMover`, `FileNameFormatter`, `BpmCsvImporter`, `BpmCsvWriter`, `SetCurator`, `BpmDetector`, `Mp3Decoder`, `OllamaTrackSuggester`, `SuggestionGuard` e `GabaritoEvaluator`.
+Principais serviços: `LibraryScanner`, `FileNameParser`, `NameCleaner`, `TrackReviewer`, `ManualReview`, `DuplicateDetector`, `LibraryOrganizer`, `LibraryMover`, `FileNameFormatter`, `BpmCsvImporter`, `BpmCsvWriter`, `SetCurator`, `BpmDetector`, `BpmWindow`, `Mp3Decoder`, `OllamaTrackSuggester`, `SuggestionGuard` e `GabaritoEvaluator`.
 
 ## Como rodar
 
@@ -195,20 +207,20 @@ dotnet run --project CrateAgent.Cli
 - [x] Importação de BPM e tom por CSV
 - [x] Curador de sets por BPM e tom (versão inicial)
 - [x] Detector de BPM por código, com salvamento em CSV
-- [x] Três medições do detector com referência externa (9/10, 10/10 e 10/10)
-- [x] Diagnosticar os erros do detector e validar em 10 faixas independentes (10/10 entre as de aparência normal)
-- [x] Testar o sinalizador de BPM ambíguo (2º candidato ≥ 85%): não adotado, veja abaixo
-- [ ] Testar a hipótese direcional (2º candidato mais rápido que o vencedor) em faixas novas
-- [ ] Medição com faixas lentas (abaixo de 90 BPM) e de outros gêneros
+- [x] Medições do detector com referência externa e diagnóstico dos erros
+- [x] Sinalizador de BPM ambíguo (testado, não adotado, revertido)
+- [x] Janela do detector restringida a 110–160 BPM (45 → 49 acertos em 51 faixas)
+- [x] Executável publicado em Releases (v0.1.0, pré-lançamento)
+- [ ] Testar o executável em um computador sem o .NET
+- [ ] Validar a janela em uma pasta nova, com outros estilos
+- [ ] Janela de BPM configurável, para faixas fora de 110–160
 - [ ] Set com destino: um arco de BPM até o valor final pedido
 - [ ] Detecção de tom
 - [ ] Indexar os CSVs pelo caminho relativo, e não pelo nome do arquivo
 - [ ] Set por duração em minutos
 - [ ] Persistência com SQLite
-- [ ] Persistência com SQLite
 - [ ] Pedido de set em linguagem natural (IA interpreta, código monta e valida)
 - [ ] Limpeza opcional de duplicatas (com conferência e envio à Lixeira)
-- [x] Executável publicado em Releases (v0.1.0, pré-lançamento)
 
 ## Licença
 
